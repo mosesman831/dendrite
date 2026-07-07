@@ -1,0 +1,53 @@
+version: 1
+compartments:
+  learnings:
+    path: brain/learnings
+    description: New concepts, techniques, facts learned.
+    examples:
+      - TIL agent orchestration uses DAG not chain
+  projects:
+    path: brain/projects
+    description: Per-project knowledge, progress, blockers.
+    examples:
+      - Hit a bug with the auth refactor today
+    subdivide_by: entity
+  ideas:
+    path: brain/ideas
+    description: Unformed thoughts, product ideas.
+    examples:
+      - What if we built an AI code reviewer?
+  memories:
+    path: brain/memories
+    description: Durable personal facts — relationships, places, preferences, biographical details you'd want to find again in a year.
+    examples:
+      - My parents live in Germany
+      - I prefer morning meetings before 10am
+  reflections:
+    path: brain/reflections
+    description: People, team dynamics, personal growth insights (not raw biographical facts — use memories for those).
+    examples:
+      - Realised I communicate better in writing
+  tasks:
+    path: brain/tasks
+    description: Things to do, follow-ups.
+    examples:
+      - Need to update the deployment script
+  rants:
+    path: brain/rants
+    description: Raw thought streams.
+    examples:
+      - Everything you'd pour out in a dump
+  reads:
+    path: brain/reads
+    description: Books, articles, resources consumed.
+    examples:
+      - Read about MCP protocol, key takeaway
+  journal:
+    path: brain/journal
+    description: Ephemeral daily logs only — what happened today, mood, mundane events. NOT for durable facts, people, or knowledge worth keeping long-term.
+    append_only: true
+    examples:
+      - Had coffee, walked the dog, felt tired this afternoon
+inbox:
+  path: brain/inbox
+  description: Unclassified / low-confidence items awaiting triage.

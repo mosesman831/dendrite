@@ -1,0 +1,83 @@
+vault:
+  path: ./vault
+  compartments_file: compartments.yaml
+  timezone: UTC
+
+providers:
+  llm:
+    primary:
+      baseURL: https://integrate.api.nvidia.com/v1
+      model: meta/llama-3.1-8b-instruct
+      apiKeyEnv: NVIDIA_API_KEY
+    fallback:
+      baseURL: https://api.openai.com/v1
+      model: gpt-4o-mini
+      apiKeyEnv: OPENAI_API_KEY
+  stt:
+    provider: openai-audio
+    baseURL: https://api.openai.com/v1
+    model: whisper-1
+    apiKeyEnv: OPENAI_API_KEY
+
+classification:
+  temperature: 0
+  strong_match_threshold: 0.72
+  weak_match_threshold: 0.45
+  confidence:
+    silent_above: 0.75
+    confirm_below: 0.5
+  split:
+    enabled: true
+    bias: conservative
+    max_segments: 5
+    min_segment_confidence: 0.5
+    short_circuit_chars: 140
+    min_coverage: 0.70
+
+inputs:
+  telegram:
+    enabled: false
+    tokenEnv: TELEGRAM_BOT_TOKEN
+    allowed_user_ids: []
+  webhook:
+    enabled: false
+    port: 8787
+    tokenEnv: DENDRITE_WEBHOOK_TOKEN
+  daily_prompt:
+    enabled: false
+    cron: "0 21 * * *"
+    skip_if_dumps_gte: 3
+
+pattern_engine:
+  cron: "0 9 * * MON"
+  recurrence_min_count: 4
+
+index:
+  db_path: ~/.local/share/dendrite/index.db
+  sync_mode: scheduled
+  reindex_cron: "0 4 * * *"
+  embeddings:
+    enabled: false
+    model: text-embedding-3-small
+    apiKeyEnv: OPENAI_API_KEY
+    hybrid_weight: 0.4
+
+repair:
+  min_sections: 3
+  max_title_relevance: 0.34
+
+organization: folders
+
+tasks:
+  render: frontmatter
+
+queue:
+  durable: true
+  max_concurrency: 2
+  max_retries: 5
+
+voice:
+  keep_audio: false
+
+replies:
+  mode: silent_high

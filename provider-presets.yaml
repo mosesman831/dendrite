@@ -1,0 +1,56 @@
+# Provider presets — copy sections into dendrite.config.yaml
+
+# --- LLM: NVIDIA NIM primary + OpenAI fallback ---
+# providers:
+#   llm:
+#     primary:
+#       baseURL: https://integrate.api.nvidia.com/v1
+#       model: meta/llama-3.1-8b-instruct
+#       apiKeyEnv: NVIDIA_API_KEY
+#     fallback:
+#       baseURL: https://api.openai.com/v1
+#       model: gpt-4o-mini
+#       apiKeyEnv: OPENAI_API_KEY
+
+# --- LLM: fully custom (no API key, e.g. Ollama) ---
+# providers:
+#   llm:
+#     primary:
+#       baseURL: http://localhost:11434/v1
+#       model: llama3.1
+#       apiKeyEnv: NONE
+
+# --- STT: NVIDIA NVCF cloud (hosted Speech NIM function) ---
+# curl -s "$BASE/v1/audio/transcriptions" \
+#   -H "Authorization: Bearer $NVIDIA_API_KEY" \
+#   -F language=en-US -F word_time_offsets=True -F file="@audio.wav"
+# providers:
+#   stt:
+#     provider: nvidia-nim
+#     baseURL: https://<your-function-id>.invocation.api.nvcf.nvidia.com
+#     language: en-US
+#     word_time_offsets: false
+#     apiKeyEnv: NVIDIA_API_KEY
+
+# --- STT: NVIDIA Speech NIM (self-hosted container on :9000) ---
+# providers:
+#   stt:
+#     provider: nvidia-nim
+#     baseURL: http://localhost:9000
+#     language: en-US
+#     apiKeyEnv: NONE
+
+# --- STT: OpenAI Whisper ---
+# providers:
+#   stt:
+#     provider: openai-audio
+#     baseURL: https://api.openai.com/v1
+#     model: whisper-1
+#     apiKeyEnv: OPENAI_API_KEY
+
+# --- STT: local whisper.cpp ---
+# providers:
+#   stt:
+#     provider: whisper-cpp
+#     model: base.en
+#     binPath: /usr/local/bin/whisper

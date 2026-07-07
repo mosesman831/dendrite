@@ -1,0 +1,52 @@
+{
+  "name": "dendrite",
+  "version": "0.1.0",
+  "description": "Knowledge ingestion daemon — classify, route, and cross-link dumps into an Obsidian vault",
+  "type": "module",
+  "license": "MIT",
+  "keywords": ["obsidian", "knowledge-management", "llm", "telegram", "mcp", "zettelkasten"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mosesman831/dendrite.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mosesman831/dendrite/issues"
+  },
+  "homepage": "https://github.com/mosesman831/dendrite#readme",
+  "bin": {
+    "dendrite": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/cli.js",
+    "serve": "node dist/cli.js serve",
+    "doctor": "node dist/cli.js doctor",
+    "ingest": "node dist/cli.js ingest",
+    "test": "node scripts/thorough-test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "better-sqlite3": "^11.9.1",
+    "commander": "^13.1.0",
+    "cron": "^4.1.0",
+    "express": "^5.1.0",
+    "grammy": "^1.35.0",
+    "gray-matter": "^4.0.3",
+    "openai": "^4.96.0",
+    "yaml": "^2.7.1",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.14.0",
+    "typescript": "^5.8.3"
+  },
+  "allowScripts": {
+    "better-sqlite3@11.10.0": true
+  }
+}
