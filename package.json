@@ -23,7 +23,8 @@
     "serve": "node dist/cli.js serve",
     "doctor": "node dist/cli.js doctor",
     "ingest": "node dist/cli.js ingest",
-    "test": "node scripts/thorough-test.mjs"
+    "test": "node scripts/thorough-test.mjs",
+    "test:ci": "node scripts/ci-smoke.mjs"
   },
   "engines": {
     "node": ">=20"
