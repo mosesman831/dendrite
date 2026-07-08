@@ -635,6 +635,32 @@ export class DendriteIndex {
       updated_at: String(data.updated ?? data.created ?? new Date().toISOString()),
     });
   }
+
+  /** Recent captures with dump metadata (confidence, source, received_at) joined to notes. */
+  recentDumpsWithNotes(limit = 20): Array<NoteRecord & {
+    confidence: number;
+    source: string;
+    received_at: string;
+  }> {
+    const rows = this.db
+      .prepare(
+        `SELECT n.path, n.compartment, n.title, n.entities, n.tags,
+                n.summary, n.updated_at,
+                d.confidence, d.source, d.received_at
+         FROM dumps d
+         JOIN notes n ON n.path = d.note_path
+         WHERE n.path NOT LIKE 'brain/_dendrite/%'
+         ORDER BY d.received_at DESC
+         LIMIT ?`,
+      )
+      .all(limit) as Array<Record<string, string>>;
+    return rows.map((row) => ({
+      ...parseNoteRow(row),
+      confidence: Number(row.confidence),
+      source: row.source,
+      received_at: row.received_at,
+    }));
+  }
 }
 
 function parseNoteRow(row: Record<string, string>): NoteRecord {

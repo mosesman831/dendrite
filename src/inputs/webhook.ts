@@ -1,17 +1,26 @@
-import express from "express";
+import express, { type Express } from "express";
 import type { Dump } from "../types.js";
 import type { PipelineContext } from "../pipeline/pipeline.js";
 import { enqueueAndProcess } from "../pipeline/pipeline.js";
 import { hashId } from "../util/slug.js";
 import type { DendriteConfig } from "../config.js";
 
-export function createWebhookServer(
+/** Create the canonical Express app for Dendrite's HTTP surface. */
+export function createExpressApp(
   config: DendriteConfig,
   ctx: PipelineContext,
-): express.Express {
+): Express {
   const app = express();
   app.use(express.json({ limit: "1mb" }));
+  return app;
+}
 
+/** Mount the webhook POST /ingest route on an existing Express app. */
+export function mountWebhookRoute(
+  app: Express,
+  config: DendriteConfig,
+  ctx: PipelineContext,
+): void {
   const token = process.env[config.inputs.webhook.tokenEnv];
 
   app.post("/ingest", async (req, res) => {
@@ -52,9 +61,16 @@ export function createWebhookServer(
       res.status(500).json({ error: msg });
     }
   });
+}
 
+/** @deprecated Use createExpressApp() + mountWebhookRoute() instead. */
+export function createWebhookServer(
+  config: DendriteConfig,
+  ctx: PipelineContext,
+): Express {
+  const app = createExpressApp(config, ctx);
+  mountWebhookRoute(app, config, ctx);
   app.get("/health", (_req, res) => res.json({ ok: true }));
-
   return app;
 }
 

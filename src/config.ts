@@ -88,6 +88,12 @@ const ConfigSchema = z.object({
     .default({}),
   organization: z.enum(["folders", "flat"]).default("folders"),
   tasks: z.object({ render: z.enum(["frontmatter"]).default("frontmatter") }).default({}),
+  dashboard: z
+    .object({
+      enabled: z.boolean().default(true),
+      port: z.number().default(8788),
+    })
+    .default({}),
   queue: z
     .object({
       durable: z.boolean().default(true),

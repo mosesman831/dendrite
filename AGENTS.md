@@ -136,4 +136,4 @@ Covers: classification, laundry-list, multi-split, idempotency, sort/migrate/rep
 
 ## Not yet built (v0.3+)
 
-Web dashboard, per-compartment templates, email input, MCP `capture_note`, merge-back correction. See [ROADMAP.md](ROADMAP.md).
+Per-compartment templates, email input, MCP `capture_note`, merge-back correction. See [ROADMAP.md](ROADMAP.md).
