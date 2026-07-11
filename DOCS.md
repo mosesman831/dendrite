@@ -100,6 +100,39 @@ dendrite reindex
 
 ---
 
+## Asking your vault (RAG)
+
+`dendrite ask` answers a natural-language question using **only** the notes already
+in your vault. It retrieves relevant notes with the existing hybrid FTS + embeddings
+search, feeds them to the LLM as context, and cites the notes it used inline as
+`[[wikilinks]]`.
+
+```bash
+dendrite ask "what did I learn about agent orchestration?"
+```
+
+It is **read-only** — it never writes to the vault. When nothing relevant is
+retrieved, it **refuses without calling the LLM** and replies that there is no
+matching note.
+
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `-c, --config <path>` | Config file path |
+| `--compartment <name>` | Restrict retrieval to one compartment |
+| `-k <n>` | Number of notes to retrieve (default from config) |
+| `--json` | Machine-readable output: `{ question, answer, sources[], usedNotes, refused }` |
+
+Like classification, `ask` reuses the LLM provider config and needs a reachable LLM.
+
+### Telegram and MCP
+
+- **Telegram:** `/ask <question>`
+- **MCP:** `answer_question({ question, compartment?, k? })`
+
+---
+
 ## Configuration
 
 Main file: `dendrite.config.yaml` (copy from `dendrite.config.example.yaml`).
@@ -183,6 +216,28 @@ Then build vectors:
 ```bash
 dendrite embed
 ```
+
+### Retrieval (RAG)
+
+Controls how `dendrite ask` retrieves context from the vault:
+
+```yaml
+retrieval:
+  k: 8                 # notes retrieved for `dendrite ask`
+  max_context_chars: 6000
+  min_score: 0
+```
+
+### Templates
+
+```yaml
+templates:
+  enabled: true
+  dir: templates
+```
+
+No templates ship by default, so behavior is unchanged until you add a
+`templates/<compartment>.md` file. See [Per-compartment templates](#per-compartment-templates).
 
 ---
 
@@ -311,10 +366,12 @@ curl http://localhost:8787/health
 | Command | Description |
 |---------|-------------|
 | `dendrite init` | Interactive setup wizard |
-| `dendrite doctor [--stats]` | Health check + metrics |
+| `dendrite doctor [--stats] [--json]` | Health check + metrics (embedding coverage, queue health, dangling links) |
 | `dendrite ingest "text"` | Classify and write one capture |
 | `dendrite ingest --dry-run "text"` | Preview without writing |
 | `dendrite ingest --file audio.ogg` | Transcribe + ingest audio |
+| `dendrite ask "question"` | RAG answer from your vault, with citations |
+| `dendrite eval` | Classification accuracy on a golden dataset |
 | `dendrite serve` | Run daemon |
 | `dendrite mcp` | MCP read-server (stdio) |
 | `dendrite reindex` | Rebuild search index from vault |
@@ -380,6 +437,64 @@ source: telegram-text
 
 TIL agent orchestration uses a DAG not a chain. Related: [[related-note]].
 ```
+
+---
+
+## Per-compartment templates
+
+Drop a `templates/<compartment>.md` file to customize the layout and frontmatter of
+**newly created** notes in that compartment (e.g. `templates/reads.md`,
+`templates/tasks.md`). Existing notes are never rewritten — templates only affect the
+first write that creates a note.
+
+A template may contain optional YAML frontmatter (extra static fields) plus a Markdown
+body with `{{variable}}` placeholders.
+
+### Available variables
+
+| Variable | Value |
+|----------|-------|
+| `{{title}}` | Note title |
+| `{{summary}}` | One-line summary |
+| `{{date}}` | Capture date |
+| `{{source}}` | Capture source (e.g. `telegram-text`) |
+| `{{compartment}}` | Target compartment |
+| `{{entities}}` | Extracted entities (comma-joined) |
+| `{{tags}}` | Tags (comma-joined) |
+| `{{links}}` | Cross-links (comma-joined) |
+| `{{capture}}` | The timestamped capture section |
+
+If a template omits `{{capture}}`, the capture section is appended after the template
+body. Dynamic core frontmatter (`compartment`, `title`, `created`, `updated`, `source`,
+`confidence`, `entities`, `tags`, `links`, `dendrite_version`, `summary`) always wins
+over template static fields.
+
+### Example — `templates/reads.md`
+
+```markdown
+---
+rating:
+status: to-read
+---
+
+# {{title}}
+
+> {{summary}}
+
+**Source:** {{source}}
+
+{{capture}}
+```
+
+Enable/locate templates in config:
+
+```yaml
+templates:
+  enabled: true
+  dir: templates
+```
+
+No templates ship by default, so behavior is unchanged until you add a template file.
 
 ---
 
@@ -454,6 +569,7 @@ Register in Cursor / Claude Code / Hermes:
 |------|---------|
 | `describe_schema` | Compartments + frontmatter contract |
 | `search_vault` | Keyword + hybrid semantic search |
+| `answer_question` | RAG answer from the vault with `[[wikilink]]` citations |
 | `read_note` | Read note by path |
 | `vault_catalog` | Full index grouped by compartment |
 | `list_compartments` | Compartment list + counts |
