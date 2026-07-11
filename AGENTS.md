@@ -137,3 +137,19 @@ Covers: classification, laundry-list, multi-split, idempotency, sort/migrate/rep
 ## Not yet built (v0.3+)
 
 Per-compartment templates, email input, MCP `capture_note`, merge-back correction. See [ROADMAP.md](ROADMAP.md).
+
+## Cursor Cloud specific instructions
+
+Startup runs `npm install` automatically (the update script). Everything below is durable, non-obvious context — see `README.md` / `package.json` scripts for the standard commands.
+
+- **Build before running anything.** The `dendrite` bin points at `dist/cli.js`, so `npm run build` (tsc) must be run before `doctor`/`ingest`/`serve`/`mcp`/`npm test`. There is no ts-runtime; rebuild after any `src/` change. Build is intentionally kept out of the update script.
+- **`better-sqlite3`** is a native module compiled during `npm install`; a normal reinstall rebuilds it.
+- **No-key checks:** `npm run test:ci` (smoke) and `npm run build` need no API keys and always work here.
+- **LLM is required for real work.** `ingest`, `serve`, `mcp` and the full `npm test` (31 checks) call an OpenAI-compatible chat endpoint. No `OPENAI_API_KEY`/`NVIDIA_API_KEY` is set by default. Two ways to get a working LLM:
+  1. Add `OPENAI_API_KEY` and/or `NVIDIA_API_KEY` as secrets (default `dendrite.config.yaml` uses NVIDIA primary + OpenAI fallback).
+  2. **Offline (no keys):** run [Ollama] serving a small model and point Dendrite at it. Use `dendrite.config.local.yaml` (already in repo) via `-c dendrite.config.local.yaml`; it targets `http://127.0.0.1:11434/v1`, model `llama3.2:3b`, `apiKeyEnv: NONE`.
+- **Ollama gotcha:** the newest Ollama (0.31.x) **segfaults during model warmup on this CPU**. Install a stable older build instead: `curl -fsSL https://ollama.com/install.sh | OLLAMA_VERSION=0.6.8 sh`, then `ollama serve` (systemd isn't running, so start it manually, e.g. in tmux) and `ollama pull llama3.2:3b`. Ollama is deliberately NOT in the update script (too heavy).
+- **Index db** lives at `~/.local/share/dendrite/index.db` (outside the repo); delete it to reset local state. `dendrite reindex` rebuilds it from the vault.
+- With a small local model, `npm test` may fail only the data-dependent `FTS search` assertion (weak-model routing writes fewer notes); use API keys or a stronger model for a clean 31/31.
+
+[Ollama]: https://ollama.com
