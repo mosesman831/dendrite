@@ -86,6 +86,19 @@ const ConfigSchema = z.object({
       max_title_relevance: z.number().default(0.34),
     })
     .default({}),
+  retrieval: z
+    .object({
+      k: z.number().int().positive().default(8),
+      max_context_chars: z.number().int().positive().default(6000),
+      min_score: z.number().min(0).default(0),
+    })
+    .default({}),
+  templates: z
+    .object({
+      enabled: z.boolean().default(true),
+      dir: z.string().default("templates"),
+    })
+    .default({}),
   organization: z.enum(["folders", "flat"]).default("folders"),
   tasks: z.object({ render: z.enum(["frontmatter"]).default("frontmatter") }).default({}),
   dashboard: z
