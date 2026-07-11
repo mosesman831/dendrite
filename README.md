@@ -176,6 +176,7 @@ flowchart LR
 | **Correction loop** | Telegram inline keyboard corrections feed few-shot examples into future classifications. |
 | **Idempotent ingest** | Same `dump.id` twice → no-op. Safe for webhook retries. |
 | **Soft undo** | `dendrite remove --last` or Telegram `/undo` — section remove or move to inbox. |
+| **Per-compartment templates** | Optional `templates/<compartment>.md` customize frontmatter + body of newly created notes. |
 
 ### Inputs
 
@@ -195,6 +196,8 @@ flowchart LR
 | `dendrite migrate` | Upgrade note frontmatter to current `dendrite_version`. |
 | `dendrite embed` | Build embedding vectors for hybrid semantic search. |
 | `dendrite backfill` | Classify vault-root / scratch notes into brain folders. |
+| `dendrite ask` | RAG question-answering over the vault, with `[[wikilink]]` citations. |
+| `dendrite eval` | Run a golden labeled dataset through the classifier to measure routing accuracy. |
 
 ### Agent interface (MCP)
 
@@ -202,6 +205,7 @@ flowchart LR
 |------|-------------|
 | `describe_schema` | Compartments + frontmatter contract — call this first. |
 | `search_vault` | Keyword + hybrid semantic search over the index. |
+| `answer_question` | RAG answer from your vault with `[[wikilink]]` citations. |
 | `read_note` | Read any note by vault-relative path. |
 | `vault_catalog` | Full index snapshot grouped by compartment. |
 | `get_capture_siblings` | Reconstruct a multi-segment capture by `split_group`. |
@@ -216,6 +220,8 @@ dendrite init              # interactive setup wizard
 dendrite doctor [--stats]  # health check + local metrics
 dendrite ingest "text"     # classify + write
 dendrite ingest --dry-run  # preview without writing
+dendrite ask "question"    # RAG answer from your vault, with citations
+dendrite eval              # classification accuracy on a golden dataset
 dendrite serve             # daemon: telegram + webhook + crons
 dendrite mcp               # MCP read-server (stdio)
 dendrite reindex           # rebuild SQLite index from vault
@@ -229,7 +235,7 @@ dendrite backfill          # classify vault-root imports only
 dendrite pattern-scan      # weekly digest now
 ```
 
-Telegram: `/help` `/inbox` `/recent` `/compartments` `/sort` `/undo`
+Telegram: `/help` `/inbox` `/recent` `/compartments` `/ask` `/sort` `/undo`
 
 ## Configuration
 

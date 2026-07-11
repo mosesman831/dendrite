@@ -1,0 +1,22 @@
+# Dendrite classification golden set. Lines starting with '#' and blank lines are ignored.
+# Routing case: {"text": "...", "expected": "<compartment>"}  -> pass if any segment matches.
+# Split case:   {"text": "...", "expected_min_segments": <n>} -> pass if results.length >= n.
+{"text": "My sister Anna works as a nurse at a hospital in Munich.", "expected": "memories", "note": "durable personal/biographical fact about a relative"}
+{"text": "I'm allergic to penicillin and my doctor's office is on Oak Street.", "expected": "memories", "note": "durable personal health fact"}
+{"text": "TIL that in Rust the borrow checker prevents data races at compile time.", "expected": "learnings", "note": "TIL / new concept learned"}
+{"text": "Learned a neat technique today: you can debounce input handlers with a trailing setTimeout to avoid extra renders.", "expected": "learnings", "note": "technique learned"}
+{"text": "Need to book a dentist appointment before Friday.", "expected": "tasks", "note": "clear to-do with deadline"}
+{"text": "Remember to renew my passport, it expires next month.", "expected": "tasks", "note": "follow-up action item"}
+{"text": "Had coffee, walked the dog, and felt kind of tired this afternoon.", "expected": "journal", "note": "ephemeral mundane daily log"}
+{"text": "What if we built an AI code reviewer that leaves inline comments on diffs automatically?", "expected": "ideas", "note": "unformed product idea"}
+{"text": "Read a great article about the MCP protocol; key takeaway is that tools are exposed as JSON schemas.", "expected": "reads", "note": "article consumed with takeaway"}
+{"text": "Finished the book Thinking Fast and Slow this weekend, loved the section on cognitive biases.", "expected": "reads", "note": "book consumed"}
+{"text": "I realised I communicate way better in writing than in live meetings, and I should lean into async updates.", "expected": "reflections", "note": "personal growth insight"}
+{"text": "Hit a nasty bug in the auth refactor today, the refresh token rotation breaks when the clock skews.", "expected": "projects", "note": "per-project progress/blocker"}
+{"text": "Honestly the new deploy process is infuriating, every single release feels like pulling teeth and nobody documents anything.", "expected": "rants", "note": "raw emotional thought stream"}
+{"text": "qqqxxzz asdf lorem zzz ttttt gibber", "expected": "inbox", "note": "gibberish, low confidence -> inbox"}
+{"text": "asdkfj 9282 ;;; ---- wut", "expected": "inbox", "note": "unparseable noise -> inbox"}
+{"text": "My parents live in Germany. Need to book a dentist before Friday. TIL Rust prevents data races.", "expected_min_segments": 3, "note": "memory + task + learning -> 3 segments"}
+{"text": "I read a fascinating paper on transformers today. Also, remind me to email the landlord about the leak.", "expected_min_segments": 2, "note": "reads + task -> 2 segments"}
+{"text": "My grandmother turns 90 next year. I want to prototype a birthday reminder app. Also I felt anxious all morning.", "expected_min_segments": 3, "note": "memory + idea + journal -> 3 segments"}
+{"text": "Learned that Postgres uses MVCC for isolation. Need to add an index on the orders table. Feeling great about the sprint.", "expected_min_segments": 2, "note": "learning + task + journal -> at least 2 segments"}

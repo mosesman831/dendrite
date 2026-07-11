@@ -4,6 +4,12 @@ import matter from "gray-matter";
 import type { Classification, Dump, ResolvedTarget } from "../types.js";
 import type { DendriteConfig } from "../config.js";
 import { formatTimestamp, nowIso } from "../util/datetime.js";
+import {
+  loadCompartmentTemplate,
+  renderFrontmatter,
+  renderTemplateBody,
+  type TemplateVars,
+} from "./template.js";
 
 export interface WriteResult {
   notePath: string;
@@ -19,6 +25,7 @@ export function writeNote(
   links: string[],
   config: DendriteConfig,
   splitGroup?: string,
+  configDir?: string,
 ): WriteResult {
   const absPath = join(vaultPath, target.notePath);
   mkdirSync(dirname(absPath), { recursive: true });
@@ -35,6 +42,27 @@ export function writeNote(
   if (created) {
     frontmatter = buildFrontmatter(dump, classification, target, links, splitGroup);
     body = `# ${classification.title}\n\n${section}`;
+
+    // Per-compartment template (optional). Dynamic core frontmatter always wins;
+    // templates may add extra static fields and control body layout.
+    const template = configDir
+      ? loadCompartmentTemplate(config, configDir, target.compartment)
+      : null;
+    if (template) {
+      const vars: TemplateVars = {
+        title: classification.title,
+        summary: classification.summary,
+        source: dump.source,
+        date: timestamp,
+        compartment: target.compartment,
+        entities: classification.entities.join(", "),
+        tags: classification.tags.join(", "),
+        links: links.join(", "),
+        capture: section,
+      };
+      frontmatter = { ...renderFrontmatter(template.frontmatter, vars), ...frontmatter };
+      body = renderTemplateBody(template, vars);
+    }
   } else {
     const existing = matter(readFileSync(absPath, "utf8"));
     frontmatter = { ...existing.data };

@@ -31,12 +31,14 @@ Dendrite receives raw captures (Telegram, webhook, CLI), classifies them with an
 ```bash
 npm run build && npm test          # 31 checks — run before/after changes
 
-dendrite doctor [--stats]
+dendrite doctor [--stats] [--json]   # + embedding coverage, queue health, dangling links
 dendrite ingest "text" [--dry-run]
+dendrite ask "question"              # RAG answer over the vault, with [[wikilink]] citations
 dendrite sort [--dry-run]            # inbox + unfiled imports → brain/
 dendrite repair [--dry-run]          # split junk-drawer notes
 dendrite migrate [--dry-run]         # upgrade frontmatter schema
 dendrite embed [--force]             # build semantic vectors (hybrid search)
+dendrite eval                        # classifier accuracy on golden dataset (dry-run)
 dendrite remove --last
 dendrite reindex
 dendrite mcp
@@ -45,7 +47,7 @@ dendrite serve
 
 ### Telegram (`dendrite serve`)
 
-`/start` `/help` `/inbox` `/recent` `/compartments` `/sort` `/undo`
+`/start` `/help` `/inbox` `/recent` `/compartments` `/ask` `/sort` `/undo`
 
 - **`/sort`** — dry-run preview with ✅ Confirm / ❌ Cancel buttons (10 min expiry).
 
@@ -55,6 +57,7 @@ dendrite serve
 |------|----------|
 | `describe_schema` | **Call first** — compartments + frontmatter contract |
 | `search_vault` | Keyword + hybrid semantic search (if embeddings enabled) |
+| `answer_question` | RAG answer from the vault with `[[wikilink]]` citations |
 | `read_note` | Read note by vault-relative path |
 | `vault_catalog` | Full index snapshot |
 | `list_compartments` | Compartment list + counts |
@@ -101,6 +104,7 @@ Archives: `brain/_dendrite/imported/` (sort), `brain/_dendrite/repaired/` (repai
 3. **`create_new` honored** on splits — no FTS junk-drawer appends.
 4. **Near-dup guard:** title keywords must appear in new text to append.
 5. **Hybrid search:** when `index.embeddings.enabled` + vectors exist, crosslink and MCP search blend FTS + cosine similarity (`hybrid_weight`).
+6. **Per-compartment templates:** optional `templates/<compartment>.md` files customize frontmatter + body of newly created notes (dynamic core frontmatter still wins).
 
 ## Config knobs
 
@@ -136,7 +140,7 @@ Covers: classification, laundry-list, multi-split, idempotency, sort/migrate/rep
 
 ## Not yet built (v0.3+)
 
-Per-compartment templates, email input, MCP `capture_note`, merge-back correction. See [ROADMAP.md](ROADMAP.md).
+Email input, MCP `capture_note`, merge-back correction. See [ROADMAP.md](ROADMAP.md) and [SPEC.md](SPEC.md).
 
 ## Cursor Cloud specific instructions
 

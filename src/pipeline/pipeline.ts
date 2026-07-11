@@ -217,6 +217,7 @@ export async function processDump(
       uniqueLinks,
       config,
       segments.length > 1 ? parentId : undefined,
+      configDir,
     );
 
     index.upsertNote({

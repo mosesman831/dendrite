@@ -4,7 +4,7 @@
  * Full LLM integration: npm test (local or with GitHub secrets).
  */
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -104,6 +104,94 @@ async function main() {
     const { code } = await run("node", args);
     if (code === 0) pass(label);
     else fail(label, `exit ${code}`);
+  }
+
+  console.log("\n=== CONFIG DEFAULTS ===");
+  try {
+    const { loadConfig } = await import(join(ROOT, "dist", "config.js"));
+    const { config } = loadConfig();
+    const k = config.retrieval?.k;
+    const templatesEnabled = config.templates?.enabled;
+    const maxCtx = config.retrieval?.max_context_chars;
+    if (k === 8 && templatesEnabled === true && maxCtx === 6000)
+      pass("config: retrieval+templates defaults");
+    else
+      fail(
+        "config: retrieval+templates defaults",
+        `retrieval.k=${k} templates.enabled=${templatesEnabled} retrieval.max_context_chars=${maxCtx}`,
+      );
+  } catch (e) {
+    fail("config defaults", e.message);
+  }
+
+  console.log("\n=== TEMPLATE RENDER (unit) ===");
+  try {
+    const { renderVars, renderTemplateBody } = await import(
+      join(ROOT, "dist", "pipeline", "template.js")
+    );
+    const vars = {
+      title: "T",
+      summary: "S",
+      source: "cli",
+      date: "2026-01-01 00:00",
+      compartment: "reads",
+      entities: "a, b",
+      tags: "x",
+      links: "",
+      capture: "## SECTION\nbody",
+    };
+
+    const a = renderVars("# {{title}} — {{summary}}", vars);
+    if (a === "# T — S") pass("template render A");
+    else fail("template render A", `got ${JSON.stringify(a)}`);
+
+    const b = renderTemplateBody({ frontmatter: {}, body: "# {{title}}", hasCapture: false }, vars);
+    if (b.includes("# T") && b.includes("## SECTION")) pass("template render B");
+    else fail("template render B", `got ${JSON.stringify(b)}`);
+
+    const c = renderTemplateBody({ frontmatter: {}, body: "{{capture}}", hasCapture: true }, vars);
+    if (c === vars.capture) pass("template render C");
+    else fail("template render C", `got ${JSON.stringify(c)}`);
+  } catch (e) {
+    fail("template render", e.message);
+  }
+
+  console.log("\n=== EVAL DATASET ===");
+  try {
+    const datasetPath = join(ROOT, "eval", "dataset.jsonl");
+    if (!existsSync(datasetPath)) {
+      fail("eval dataset present", "eval/dataset.jsonl missing");
+    } else {
+      const raw = readFileSync(datasetPath, "utf8");
+      const lines = raw
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0 && !l.startsWith("#"));
+      let badLine = null;
+      let n = 0;
+      for (const line of lines) {
+        let obj;
+        try {
+          obj = JSON.parse(line);
+        } catch (err) {
+          badLine = `invalid JSON: ${line.slice(0, 80)}`;
+          break;
+        }
+        const hasExpected =
+          typeof obj.expected === "string" || typeof obj.expected_min_segments === "number";
+        const hasText = typeof obj.text === "string" && obj.text.length > 0;
+        if (!hasExpected || !hasText) {
+          badLine = `missing fields: ${line.slice(0, 80)}`;
+          break;
+        }
+        n++;
+      }
+      if (badLine) fail("eval dataset valid", badLine);
+      else if (n >= 10) pass("eval dataset valid", `${n} cases`);
+      else fail("eval dataset valid", `only ${n} cases`);
+    }
+  } catch (e) {
+    fail("eval dataset", e.message);
   }
 
   return summary();

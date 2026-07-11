@@ -13,6 +13,8 @@ import { runRemove } from "./commands/remove.js";
 import { runMigrate } from "./commands/migrate.js";
 import { runRepair } from "./commands/repair.js";
 import { runEmbed } from "./commands/embed.js";
+import { runAsk } from "./commands/ask.js";
+import { runEval } from "./commands/eval.js";
 import { startMcpServer } from "./mcp/server.js";
 
 const program = new Command();
@@ -30,6 +32,7 @@ program
 program
   .command("doctor")
   .option("--stats", "Show local metrics")
+  .option("--json", "Output machine-readable health JSON")
   .option("-c, --config <path>", "Config file path")
   .action(runDoctor);
 
@@ -46,6 +49,25 @@ program
   .description("Run all enabled input adapters and schedulers")
   .option("-c, --config <path>", "Config file path")
   .action(runServe);
+
+program
+  .command("ask [question]")
+  .description("Answer a question using only your vault notes (read-only RAG)")
+  .option("-c, --config <path>", "Config file path")
+  .option("--compartment <name>", "Restrict retrieval to one compartment")
+  .option("-k, --k <n>", "Number of notes to retrieve")
+  .option("--json", "Output machine-readable JSON")
+  .action(runAsk);
+
+program
+  .command("eval")
+  .description("Run the golden classification dataset and report routing accuracy")
+  .option("-c, --config <path>", "Config file path")
+  .option("--limit <n>", "Only run the first N cases")
+  .option("--min <ratio>", "Exit non-zero if accuracy is below this ratio (e.g. 0.7)")
+  .option("--dataset <path>", "Path to a JSONL dataset (default: eval/dataset.jsonl)")
+  .option("--json", "Output machine-readable JSON")
+  .action(runEval);
 
 program
   .command("mcp")
