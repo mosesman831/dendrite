@@ -342,6 +342,19 @@ export class DendriteIndex {
     return row.c;
   }
 
+  queueStatusCounts(): { pending: number; processing: number; done: number; dead: number } {
+    const rows = this.db
+      .prepare(`SELECT status, COUNT(*) as c FROM ingest_queue GROUP BY status`)
+      .all() as Array<{ status: string; c: number }>;
+    const out = { pending: 0, processing: 0, done: 0, dead: 0 };
+    for (const r of rows) {
+      if (r.status === "pending" || r.status === "processing" || r.status === "done" || r.status === "dead") {
+        out[r.status] = r.c;
+      }
+    }
+    return out;
+  }
+
   listEmbeddingPaths(): string[] {
     const rows = this.db.prepare(`SELECT note_path FROM embeddings`).all() as Array<{
       note_path: string;
