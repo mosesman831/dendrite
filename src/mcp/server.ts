@@ -6,6 +6,7 @@ import { z } from "zod";
 import { loadConfig, loadCompartments } from "../config.js";
 import { DendriteIndex } from "../pipeline/index.js";
 import { smartSearch } from "../pipeline/search.js";
+import { answerQuestion } from "../pipeline/answer.js";
 import { FRONTMATTER_CONTRACT } from "../types.js";
 import matter from "gray-matter";
 
@@ -35,6 +36,16 @@ export async function startMcpServer(configPath?: string): Promise<void> {
       return {
         content: [{ type: "text", text: JSON.stringify(hits, null, 2) }],
       };
+    },
+  );
+
+  server.tool(
+    "answer_question",
+    "Answer a natural-language question using ONLY vault notes, with [[wikilink]] citations. Read-only RAG; refuses when nothing relevant is found.",
+    { question: z.string(), compartment: z.string().optional(), k: z.number().optional() },
+    async ({ question, compartment, k }) => {
+      const result = await answerQuestion(index, config.vault.path, question, config, llm, { compartment, k });
+      return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
     },
   );
 

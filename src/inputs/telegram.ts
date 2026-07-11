@@ -13,6 +13,7 @@ import {
 import { loadCompartments, type DendriteConfig } from "../config.js";
 import { undoCapture, resolveUndoTarget } from "../pipeline/remove.js";
 import { previewSort, runSort, formatSortPreviewTelegram } from "../commands/sort.js";
+import { answerQuestion } from "../pipeline/answer.js";
 import type { Context } from "grammy";
 
 const pendingSorts = new Map<number, { scope: "all" | "inbox" | "imports"; at: number }>();
@@ -25,6 +26,7 @@ const TELEGRAM_COMMANDS = [
   { command: "compartments", description: "List brain compartments" },
   { command: "sort", description: "Preview LLM vault sort (inbox + imports)" },
   { command: "undo", description: "Undo your last capture" },
+  { command: "ask", description: "Ask a question answered from your vault" },
 ] as const;
 
 export async function startTelegramBot(
@@ -118,6 +120,22 @@ export async function startTelegramBot(
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       await c.reply(`Sort preview failed: ${msg}`);
+    }
+  });
+
+  bot.command("ask", async (c) => {
+    if (!isAllowed(c.from?.id, allowed)) return;
+    const question = (c.match ?? "").toString().trim();
+    if (!question) return c.reply("Usage: /ask <your question>");
+    try {
+      const result = await answerQuestion(ctx.index, config.vault.path, question, config, ctx.llm);
+      const sources = result.sources.length
+        ? "\n\nSources:\n" + result.sources.slice(0, 5).map((s) => `• [[${s.slug}]]`).join("\n")
+        : "";
+      await safeReply(c, { text: `${result.answer}${sources}` });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      await c.reply(`Ask failed: ${msg}`);
     }
   });
 
