@@ -237,6 +237,7 @@ export async function processDump(
       target.notePath,
       target.compartment,
       classification.confidence,
+      i === 0 ? transcript : childDump.text,
     );
 
     for (const link of uniqueLinks) {

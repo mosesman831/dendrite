@@ -7,7 +7,9 @@ import { loadConfig, loadCompartments } from "../config.js";
 import { DendriteIndex } from "../pipeline/index.js";
 import { smartSearch } from "../pipeline/search.js";
 import { answerQuestion } from "../pipeline/answer.js";
-import { FRONTMATTER_CONTRACT } from "../types.js";
+import { FRONTMATTER_CONTRACT, type Dump } from "../types.js";
+import { createPipelineContext, processDump } from "../pipeline/pipeline.js";
+import { hashId } from "../util/slug.js";
 import matter from "gray-matter";
 
 export async function startMcpServer(configPath?: string): Promise<void> {
@@ -148,14 +150,17 @@ export async function startMcpServer(configPath?: string): Promise<void> {
     { split_group: z.string() },
     async ({ split_group }) => {
       const siblings = index.getCaptureSiblings(split_group, config.vault.path);
+      const parentId = split_group.includes("#") ? split_group.replace(/#\d+$/, "") : split_group;
+      const transcript = siblings[0]?.transcript;
       return {
         content: [
           {
             type: "text",
             text: JSON.stringify(
               {
-                parentId: split_group.includes("#") ? split_group.replace(/#\d+$/, "") : split_group,
+                parentId,
                 segmentCount: siblings.length,
+                transcript,
                 siblings,
               },
               null,
@@ -166,6 +171,43 @@ export async function startMcpServer(configPath?: string): Promise<void> {
       };
     },
   );
+
+  if (config.mcp.write.enabled) {
+    server.tool(
+      "capture_note",
+      "Ingest a text capture through the same pipeline as CLI/webhook (gated write; audit logged)",
+      {
+        text: z.string(),
+        source_hint: z.string().optional(),
+        dry_run: z.boolean().optional(),
+      },
+      async ({ text, source_hint, dry_run }) => {
+        const agentId = source_hint ?? "mcp";
+        const dump: Dump = {
+          id: `mcp-${hashId(text + Date.now())}`,
+          source: "webhook",
+          receivedAt: new Date().toISOString(),
+          text,
+          meta: {
+            via: "mcp",
+            agent_id: agentId,
+            ...(config.mcp.write.require_review ? { require_review: true } : {}),
+          },
+        };
+
+        const ctx = createPipelineContext(config, configDir, llm, dry_run ?? false);
+        try {
+          const results = await processDump(ctx, dump);
+          if (!dry_run) {
+            ctx.index.recordWriteAudit(agentId, "capture_note", dump.id);
+          }
+          return { content: [{ type: "text", text: JSON.stringify(results, null, 2) }] };
+        } finally {
+          ctx.index.close();
+        }
+      },
+    );
+  }
 
   server.tool(
     "describe_schema",

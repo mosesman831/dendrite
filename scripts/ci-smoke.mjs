@@ -79,6 +79,40 @@ async function main() {
     fail("embeddings util", e.message);
   }
 
+  console.log("\n=== DUMP TEXT ROUNDTRIP ===");
+  try {
+    const { mkdtempSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join: pathJoin } = await import("node:path");
+    const { DendriteIndex } = await import(join(ROOT, "dist", "pipeline", "index.js"));
+    const tmpDir = mkdtempSync(pathJoin(tmpdir(), "dendrite-smoke-"));
+    const dbPath = pathJoin(tmpDir, "test.db");
+    const index = new DendriteIndex(dbPath);
+    const parentId = "smoke-parent-1";
+    const transcript = "Original capture transcript for sibling reconstruction";
+    index.recordDump(
+      parentId,
+      "cli",
+      new Date().toISOString(),
+      "brain/inbox/smoke-test.md",
+      "inbox",
+      0.85,
+      transcript,
+    );
+    const siblings = index.getCaptureSiblings(parentId);
+    index.close();
+    rmSync(tmpDir, { recursive: true, force: true });
+    if (siblings.length === 1 && siblings[0].transcript === transcript)
+      pass("recordDump+getCaptureSiblings text", "transcript roundtrip");
+    else
+      fail(
+        "recordDump+getCaptureSiblings text",
+        `transcript=${JSON.stringify(siblings[0]?.transcript)}`,
+      );
+  } catch (e) {
+    fail("dump text roundtrip", e.message);
+  }
+
   console.log("\n=== INDEX + REINDEX ===");
   try {
     const { loadConfig } = await import(join(ROOT, "dist", "config.js"));
