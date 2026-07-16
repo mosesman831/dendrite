@@ -15,6 +15,7 @@ import { runRepair } from "./commands/repair.js";
 import { runEmbed } from "./commands/embed.js";
 import { runAsk } from "./commands/ask.js";
 import { runEval } from "./commands/eval.js";
+import { runMerge } from "./commands/merge.js";
 import { startMcpServer } from "./mcp/server.js";
 
 const program = new Command();
@@ -179,5 +180,28 @@ program
   .action(async (opts: { config?: string; force?: boolean }) => {
     await runEmbed({ config: opts.config, force: opts.force });
   });
+
+program
+  .command("merge <pathA> <pathB>")
+  .description("Merge two notes into one (merge-back correction)")
+  .option("-c, --config <path>", "Config file path")
+  .option("--into <target>", "Survivor note: A or B", "A")
+  .option("--dry-run", "Preview merge without writing")
+  .action(
+    async (
+      pathA: string,
+      pathB: string,
+      opts: { config?: string; into?: string; dryRun?: boolean },
+    ) => {
+      const into = opts.into?.toUpperCase() === "B" ? "B" : "A";
+      await runMerge({
+        config: opts.config,
+        pathA,
+        pathB,
+        into,
+        dryRun: opts.dryRun,
+      });
+    },
+  );
 
 program.parse();

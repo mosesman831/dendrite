@@ -129,10 +129,61 @@ async function main() {
     fail("index", e.message);
   }
 
+  console.log("\n=== MERGE NOTES (unit) ===");
+  try {
+    const {
+      mergeFrontmatter,
+      mergeNoteBodies,
+      rewriteWikilinks,
+      noteSlugFromPath,
+    } = await import(join(ROOT, "dist", "pipeline", "merge-notes.js"));
+
+    const fm = mergeFrontmatter(
+      { title: "A", compartment: "tasks", created: "2026-02-01T00:00:00.000Z", entities: ["x"] },
+      { title: "B", compartment: "reads", created: "2026-01-01T00:00:00.000Z", updated: "2026-03-01T00:00:00.000Z", entities: ["y"], tags: ["t"] },
+    );
+    if (
+      fm.title === "A" &&
+      fm.compartment === "tasks" &&
+      fm.created === "2026-01-01T00:00:00.000Z" &&
+      fm.updated === "2026-03-01T00:00:00.000Z" &&
+      JSON.stringify(fm.entities) === JSON.stringify(["x", "y"]) &&
+      JSON.stringify(fm.tags) === JSON.stringify(["t"])
+    ) {
+      pass("mergeFrontmatter");
+    } else fail("mergeFrontmatter", JSON.stringify(fm));
+
+    const sampleA =
+      "# One\n\n## 2026-07-07 12:00 · via cli\nFirst.\n\n## 2026-07-07 12:01 · via telegram-text\nShared.";
+    const sampleB =
+      "# Two\n\n## 2026-07-07 12:01 · via telegram-text\nShared.\n\n## 2026-07-08 09:00 · via cli\nOnly B.";
+    const merged = mergeNoteBodies(sampleA, sampleB);
+    if (merged.mergedSectionCount === 3 && merged.survivorSectionCount === 2) {
+      pass("mergeNoteBodies dedupe", `${merged.mergedSectionCount} sections`);
+    } else {
+      fail("mergeNoteBodies dedupe", `got ${merged.mergedSectionCount}`);
+    }
+
+    const { text, count } = rewriteWikilinks(
+      "See [[foo]] and [[foo|alias]] plus [[bar]].",
+      "foo",
+      "baz",
+    );
+    if (count === 2 && text.includes("[[baz]]") && text.includes("[[baz|alias]]")) {
+      pass("rewriteWikilinks");
+    } else fail("rewriteWikilinks", `count=${count} text=${text}`);
+
+    if (noteSlugFromPath("brain/tasks/my-note.md") === "my-note") pass("noteSlugFromPath");
+    else fail("noteSlugFromPath");
+  } catch (e) {
+    fail("merge notes", e.message);
+  }
+
   console.log("\n=== CLI SMOKE ===");
   for (const [label, args] of [
     ["migrate dry-run", ["dist/cli.js", "migrate", "--dry-run"]],
     ["repair dry-run", ["dist/cli.js", "repair", "--dry-run"]],
+    ["merge dry-run", ["dist/cli.js", "merge", "brain/memories/parents-live-in-germany.md", "brain/learnings/agent-orchestration-uses-dag-instead-of-chain.md", "--dry-run"]],
     ["inbox", ["dist/cli.js", "inbox"]],
   ]) {
     const { code } = await run("node", args);
@@ -226,6 +277,27 @@ async function main() {
     }
   } catch (e) {
     fail("eval dataset", e.message);
+  }
+
+  console.log("\n=== DOCTOR JSON ===");
+  try {
+    const doc = await run("node", ["dist/cli.js", "doctor", "--json"]);
+    const trimmed = doc.stdout.trim();
+    const parsed = trimmed ? JSON.parse(trimmed) : null;
+    const hasSegment =
+      typeof parsed?.segment_stats?.avg_segments_per_dump === "number";
+    const hasCost =
+      typeof parsed?.cost_estimate?.estimated_cost_usd_per_dump === "number" &&
+      typeof parsed?.cost_estimate?.estimated_cost_usd_last_7d === "number";
+    const hasWarnings = Array.isArray(parsed?.warnings);
+    if (hasSegment && hasCost && hasWarnings) pass("doctor --json guardrail fields");
+    else
+      fail(
+        "doctor --json guardrail fields",
+        `segment=${hasSegment} cost=${hasCost} warnings=${hasWarnings}`,
+      );
+  } catch (e) {
+    fail("doctor --json guardrail fields", e.message);
   }
 
   return summary();
