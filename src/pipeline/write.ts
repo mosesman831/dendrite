@@ -17,6 +17,26 @@ export interface WriteResult {
   body: string;
 }
 
+/** Obsidian-Tasks style checkbox lines for extracted tasks. */
+export function renderTaskCheckboxLines(tasks: string[], dates: string[]): string {
+  if (tasks.length === 0) return "";
+  const attachDate = tasks.length === 1 && dates.length === 1;
+  return tasks
+    .map((task) => {
+      const dateSuffix = attachDate ? ` 📅 ${dates[0]}` : "";
+      return `- [ ] ${task}${dateSuffix}`;
+    })
+    .join("\n");
+}
+
+function tasksInFrontmatter(render: DendriteConfig["tasks"]["render"]): boolean {
+  return render === "frontmatter" || render === "both";
+}
+
+function tasksAsCheckboxes(render: DendriteConfig["tasks"]["render"]): boolean {
+  return render === "checkbox" || render === "both";
+}
+
 export function writeNote(
   vaultPath: string,
   dump: Dump,
@@ -35,12 +55,13 @@ export function writeNote(
     links.length > 0 ? ` Related: ${links.join(", ")}.` : "";
   const section = `## ${timestamp} · via ${dump.source}\n${dump.text}${linkText}\n`;
 
+  const taskRender = config.tasks.render;
   const created = !existsSync(absPath);
   let frontmatter: Record<string, unknown> = {};
   let body = "";
 
   if (created) {
-    frontmatter = buildFrontmatter(dump, classification, target, links, splitGroup);
+    frontmatter = buildFrontmatter(dump, classification, target, links, splitGroup, taskRender);
     body = `# ${classification.title}\n\n${section}`;
 
     // Per-compartment template (optional). Dynamic core frontmatter always wins;
@@ -63,6 +84,14 @@ export function writeNote(
       frontmatter = { ...renderFrontmatter(template.frontmatter, vars), ...frontmatter };
       body = renderTemplateBody(template, vars);
     }
+
+    if (tasksAsCheckboxes(taskRender) && classification.extracted.tasks.length > 0) {
+      const lines = renderTaskCheckboxLines(
+        classification.extracted.tasks,
+        classification.extracted.dates,
+      );
+      body = body.trimEnd() + "\n\n" + lines + "\n";
+    }
   } else {
     const existing = matter(readFileSync(absPath, "utf8"));
     frontmatter = { ...existing.data };
@@ -81,25 +110,32 @@ export function writeNote(
       Array.isArray(frontmatter.links) ? frontmatter.links.map(String) : [],
       links,
     );
-    if (config.tasks.render === "frontmatter") {
+    if (tasksInFrontmatter(taskRender)) {
       frontmatter.tasks = mergeUnique(
         Array.isArray(frontmatter.tasks) ? frontmatter.tasks.map(String) : [],
         classification.extracted.tasks,
       );
-      frontmatter.dates = mergeUnique(
-        Array.isArray(frontmatter.dates) ? frontmatter.dates.map(String) : [],
+    }
+    frontmatter.dates = mergeUnique(
+      Array.isArray(frontmatter.dates) ? frontmatter.dates.map(String) : [],
+      classification.extracted.dates,
+    );
+    frontmatter.people = mergeUnique(
+      Array.isArray(frontmatter.people) ? frontmatter.people.map(String) : [],
+      classification.extracted.people,
+    );
+    frontmatter.resources = mergeUnique(
+      Array.isArray(frontmatter.resources) ? frontmatter.resources.map(String) : [],
+      classification.extracted.resources,
+    );
+    body = existing.content.trimEnd() + "\n\n" + section;
+    if (tasksAsCheckboxes(taskRender) && classification.extracted.tasks.length > 0) {
+      const lines = renderTaskCheckboxLines(
+        classification.extracted.tasks,
         classification.extracted.dates,
       );
-      frontmatter.people = mergeUnique(
-        Array.isArray(frontmatter.people) ? frontmatter.people.map(String) : [],
-        classification.extracted.people,
-      );
-      frontmatter.resources = mergeUnique(
-        Array.isArray(frontmatter.resources) ? frontmatter.resources.map(String) : [],
-        classification.extracted.resources,
-      );
+      body += "\n" + lines + "\n";
     }
-    body = existing.content.trimEnd() + "\n\n" + section;
   }
 
   const file = matter.stringify(body, frontmatter);
@@ -130,6 +166,7 @@ function buildFrontmatter(
   target: ResolvedTarget,
   links: string[],
   splitGroup?: string,
+  taskRender: DendriteConfig["tasks"]["render"] = "frontmatter",
 ): Record<string, unknown> {
   const now = nowIso();
   const fm: Record<string, unknown> = {
@@ -146,7 +183,9 @@ function buildFrontmatter(
     summary: classification.summary,
   };
   if (splitGroup) fm.split_group = splitGroup;
-  if (classification.extracted.tasks.length) fm.tasks = classification.extracted.tasks;
+  if (tasksInFrontmatter(taskRender) && classification.extracted.tasks.length) {
+    fm.tasks = classification.extracted.tasks;
+  }
   if (classification.extracted.dates.length) fm.dates = classification.extracted.dates;
   if (classification.extracted.people.length) fm.people = classification.extracted.people;
   if (classification.extracted.resources.length) fm.resources = classification.extracted.resources;

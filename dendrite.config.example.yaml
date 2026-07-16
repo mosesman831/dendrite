@@ -75,8 +75,13 @@ repair:
   min_sections: 3
   max_title_relevance: 0.34
 
+# folders: brain/<compartment>/<slug>.md (default)
+# flat: brain/<slug>.md — compartment lives in frontmatter only
 organization: folders
 
+# frontmatter: tasks[] in YAML only (default)
+# checkbox: Obsidian-Tasks lines in body (- [ ] task 📅 date)
+# both: frontmatter mirror + checkbox lines
 tasks:
   render: frontmatter
 

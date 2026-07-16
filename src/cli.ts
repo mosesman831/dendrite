@@ -150,9 +150,18 @@ program
   .description("Upgrade note frontmatter to current dendrite_version (idempotent)")
   .option("-c, --config <path>", "Config file path")
   .option("--dry-run", "Preview migrations without writing")
-  .action(async (opts: { config?: string; dryRun?: boolean }) => {
-    await runMigrate({ config: opts.config, dryRun: opts.dryRun });
-  });
+  .option("--to-flat", "Relocate compartment notes to brain/<slug>.md (flat layout)")
+  .option("--to-folders", "Relocate flat brain/*.md notes into compartment folders")
+  .action(
+    async (opts: { config?: string; dryRun?: boolean; toFlat?: boolean; toFolders?: boolean }) => {
+      await runMigrate({
+        config: opts.config,
+        dryRun: opts.dryRun,
+        toFlat: opts.toFlat,
+        toFolders: opts.toFolders,
+      });
+    },
+  );
 
 program
   .command("repair")

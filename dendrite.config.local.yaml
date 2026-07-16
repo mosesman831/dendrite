@@ -62,8 +62,11 @@ repair:
   min_sections: 3
   max_title_relevance: 0.34
 
+# folders: brain/<compartment>/<slug>.md (default)
+# flat: brain/<slug>.md — compartment in frontmatter only
 organization: folders
 
+# frontmatter | checkbox | both — see dendrite.config.example.yaml
 tasks:
   render: frontmatter
 
