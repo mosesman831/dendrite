@@ -22,7 +22,6 @@ function closeModal() {
   $('#modal').classList.add('hidden');
 }
 
-/* close modal on Escape */
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') closeModal();
 });
@@ -49,6 +48,12 @@ function escHtml(s) {
   return d.innerHTML;
 }
 
+function renderWikilinks(text) {
+  return escHtml(text).replace(/\[\[([^\]]+)\]\]/g, function(_m, slug) {
+    return '<span class="wikilink">[[' + escHtml(slug) + ']]</span>';
+  });
+}
+
 /* ---------- API helpers ---------- */
 function api(path, opts) {
   opts = opts || {};
@@ -57,6 +62,36 @@ function api(path, opts) {
     headers: opts.body ? { 'Content-Type': 'application/json' } : undefined,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   }).then(function(r) { return r.json(); });
+}
+
+/* ---------- Health strip ---------- */
+function loadHealth() {
+  api('/api/health').then(function(h) {
+    if (!h.ok) return;
+    var cov = h.embedding_coverage || {};
+    var q = h.queue || {};
+    var items = [];
+
+    if (h.embeddings_enabled) {
+      var covCls = cov.pct >= 80 ? 'ok' : cov.pct >= 40 ? '' : 'warn';
+      items.push('<span class="health-item ' + covCls + '"><span class="label">Embeddings</span><span class="value">' +
+        (cov.pct || 0) + '%</span></span>');
+    } else {
+      items.push('<span class="health-item"><span class="label">Embeddings</span><span class="value">off</span></span>');
+    }
+
+    var queueCls = q.pending > 0 ? 'warn' : 'ok';
+    items.push('<span class="health-item ' + queueCls + '"><span class="label">Queue</span><span class="value">' +
+      (q.pending || 0) + ' pending</span></span>');
+
+    var danglingCls = h.dangling_links > 0 ? 'warn' : 'ok';
+    items.push('<span class="health-item ' + danglingCls + '"><span class="label">Dangling links</span><span class="value">' +
+      (h.dangling_links || 0) + '</span></span>');
+
+    $('#health-strip').innerHTML = items.join('');
+  }).catch(function() {
+    $('#health-strip').innerHTML = '<span class="health-item"><span class="value">Health unavailable</span></span>';
+  });
 }
 
 /* ---------- Tab switching ---------- */
@@ -73,44 +108,46 @@ $$('.tab').forEach(function(t) {
 /* ---------- Quick Glance ---------- */
 function loadGlance() {
   api('/api/stats').then(function(data) {
-    $('#inbox-count').textContent = data.inbox_count;
-    $('#today-count').textContent = data.today_count;
-    $('#week-count').textContent = data.week_count;
-
-    /* stats cards */
     var cardsHtml = '';
     cardsHtml += '<div class="stat-card clickable" id="stat-inbox" onclick="switchTab(\'triage\')">' +
-      '<span class="label">Inbox</span><span class="value">' + data.inbox_count + '</span><span class="hint">unfiled</span></div>';
+      '<span class="label">Inbox</span><span class="value">' + data.inbox_count + '</span>' +
+      '<span class="hint">unfiled</span></div>';
     cardsHtml += '<div class="stat-card"><span class="label">Today</span><span class="value">' + data.today_count +
       '</span><span class="hint">captures</span></div>';
-    cardsHtml += '<div class="stat-card"><span class="label">This Week</span><span class="value">' + data.week_count +
+    cardsHtml += '<div class="stat-card"><span class="label">This week</span><span class="value">' + data.week_count +
       '</span><span class="hint">captures</span></div>';
     $('#stats-cards').innerHTML = cardsHtml;
 
-    /* compartment bars */
     var barsHtml = '';
     var maxCount = 1;
     (data.compartments || []).forEach(function(c) { if (c.count > maxCount) maxCount = c.count; });
-    (data.compartments || []).forEach(function(c) {
-      var pct = (c.count / maxCount) * 100;
-      barsHtml += '<div class="comp-bar">' +
-        '<span class="name">' + escHtml(c.name) + '</span>' +
-        '<div class="bar"><div class="fill" style="width:' + pct + '%"></div></div>' +
-        '<span class="count">' + c.count + '</span></div>';
-    });
+    if ((data.compartments || []).length === 0) {
+      barsHtml = '<div class="empty-state"><p class="empty-title">No notes indexed</p>' +
+        '<p class="empty-detail">Run ingest or sort to populate compartments.</p></div>';
+    } else {
+      (data.compartments || []).forEach(function(c) {
+        var pct = (c.count / maxCount) * 100;
+        barsHtml += '<div class="comp-bar">' +
+          '<span class="name">' + escHtml(c.name) + '</span>' +
+          '<div class="bar"><div class="fill" style="width:' + pct + '%"></div></div>' +
+          '<span class="count">' + c.count + '</span></div>';
+      });
+    }
     $('#compartment-bars').innerHTML = barsHtml;
 
-    /* latest capture */
+    var lcEl = $('#latest-capture');
     if (data.latest_capture) {
       var lc = data.latest_capture;
       var confCls = colorClass(lc.confidence);
-      $('#latest-capture').innerHTML =
-        '<span class="time">' + lc.received_at.slice(11, 16) + '</span> ' +
-        '<span class="comp-badge ' + lc.compartment + '">' + lc.compartment + '</span> ' +
-        '<span class="title">' + escHtml(lc.title || lc.path) + '</span> ' +
+      lcEl.className = 'latest-capture';
+      lcEl.innerHTML =
+        '<span class="time">' + lc.received_at.slice(11, 16) + '</span>' +
+        '<span class="comp-badge ' + lc.compartment + '">' + lc.compartment + '</span>' +
+        '<span class="title">' + escHtml(lc.title || lc.path) + '</span>' +
         '<span class="conf ' + confCls + '">' + lc.confidence.toFixed(2) + '</span>';
     } else {
-      $('#latest-capture').innerHTML = '<span class="muted">No captures yet</span>';
+      lcEl.className = 'latest-capture empty-hint';
+      lcEl.innerHTML = 'No captures yet. Send a thought via CLI, Telegram, or webhook.';
     }
   }).catch(function() {
     showToast('Failed to load stats', 'error');
@@ -131,10 +168,11 @@ function loadTriage() {
       inbox.forEach(function(note) {
         var confCls = colorClass(note.confidence);
         var segBadge = note.split_group ? '<span class="segment-badge">split</span>' : '';
+        var safePath = note.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         html += '<div class="inbox-card" data-path="' + escHtml(note.path) + '" style="--conf-color:' +
           confColor(note.confidence) + '">' +
           '<div class="filename">' + escHtml(note.path) + segBadge + '</div>' +
-          '<div class="preview">' + escHtml((note.body_preview || note.summary || '').slice(0, 200)) + '</div>' +
+          '<div class="preview">' + escHtml((note.body_preview || note.summary || '').slice(0, 240)) + '</div>' +
           '<div class="meta">' +
           '<span class="comp-badge ' + (note.compartment || 'inbox') + '">' + (note.compartment || 'inbox') +
           '</span> ' +
@@ -143,16 +181,15 @@ function loadTriage() {
           '<span>' + sourceLabel(note.source) + '</span>' +
           '</div>' +
           '<div class="actions">' +
-          '<button class="btn btn-approve" onclick="doApprove(\'' + escHtml(note.path) + '\')">✓ Approve</button>' +
-          '<select class="compartment-select" onchange="doReclassify(\'' + escHtml(note.path) + '\', this.value)">' +
+          '<button class="btn btn-approve" onclick="doApprove(\'' + safePath + '\')">Approve</button>' +
+          '<select class="compartment-select" onchange="doReclassify(\'' + safePath + '\', this.value)">' +
           '<option value="">Reclassify...</option>' +
           '</select>' +
-          '<button class="btn btn-reject" onclick="doReject(this, \'' + escHtml(note.path) + '\')">✗ Reject</button>' +
+          '<button class="btn btn-reject" onclick="doReject(this, \'' + safePath + '\')">Reject</button>' +
           '</div></div>';
       });
       $('#inbox-queue').innerHTML = html;
 
-      /* populate compartment dropdowns */
       api('/api/compartments').then(function(comps) {
         $$('.compartment-select').forEach(function(sel) {
           comps.forEach(function(c) {
@@ -167,12 +204,18 @@ function loadTriage() {
     }
   }).catch(function() { showToast('Failed to load inbox', 'error'); });
 
-  /* Recent captures */
   api('/api/recent?limit=20').then(function(notes) {
+    if (!notes.length) {
+      $('#recent-captures').innerHTML = '';
+      $('#recent-empty').classList.remove('hidden');
+      return;
+    }
+    $('#recent-empty').classList.add('hidden');
     var html = '';
     notes.forEach(function(n) {
       var confCls = colorClass(n.confidence);
-      html += '<div class="recent-row" onclick="openNoteModal(\'' + escHtml(n.path) + '\')">' +
+      var safePath = n.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      html += '<div class="recent-row" onclick="openNoteModal(\'' + safePath + '\')">' +
         '<span class="time">' + (n.received_at ? n.received_at.slice(11, 16) : '') + '</span>' +
         '<span class="comp"><span class="comp-badge ' + n.compartment + '">' + n.compartment + '</span></span>' +
         '<span class="title">' + escHtml(n.title || n.path) + '</span>' +
@@ -186,9 +229,10 @@ function loadTriage() {
 window.doApprove = function(path) {
   api('/api/triage/approve', { method: 'POST', body: { path: path } }).then(function(r) {
     if (r.ok) {
-      showToast('Approved → ' + r.compartment, 'success');
+      showToast('Approved to ' + r.compartment, 'success');
       removeCard(path);
       loadTriage();
+      loadHealth();
     } else {
       showToast(r.error || 'Approve failed', 'error');
     }
@@ -211,17 +255,16 @@ window.doReclassify = function(path, compartment) {
 window.doReject = function(btn, path) {
   if (!btn.classList.contains('confirming')) {
     btn.classList.add('confirming');
-    btn.textContent = 'Sure?';
-    var orig = btn.textContent;
+    btn.textContent = 'Confirm?';
     setTimeout(function() {
       btn.classList.remove('confirming');
-      btn.textContent = '✗ Reject';
+      btn.textContent = 'Reject';
     }, 2500);
     return;
   }
   api('/api/triage/reject', { method: 'POST', body: { path: path } }).then(function(r) {
     if (r.ok) {
-      showToast('Rejected — moved to trash', 'success');
+      showToast('Rejected and moved to trash', 'success');
       removeCard(path);
       loadTriage();
     } else {
@@ -246,6 +289,7 @@ window.openNoteModal = function(path) {
     var isInbox = path.indexOf('/inbox/') >= 0;
     var comp = fm.compartment || '?';
     var confCls = colorClass(Number(fm.confidence) || 0);
+    var safePath = path.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     var metaHtml = '';
     metaHtml += '<div>Compartment: <span class="comp-badge ' + comp + '">' + comp + '</span></div>';
     if (fm.confidence) metaHtml += '<div>Confidence: <span class="' + confCls + '">' + Number(fm.confidence).toFixed(2) +
@@ -260,26 +304,26 @@ window.openNoteModal = function(path) {
     var actionHtml = '';
     if (isInbox) {
       actionHtml = '<div class="modal-actions">' +
-        '<button class="btn btn-approve" onclick="doApprove(\'' + escHtml(path) + '\')">✓ Approve</button>' +
-        '<select class="compartment-select" onchange="doReclassify(\'' + escHtml(path) +
+        '<button class="btn btn-approve" onclick="doApprove(\'' + safePath + '\')">Approve</button>' +
+        '<select class="compartment-select" onchange="doReclassify(\'' + safePath +
         '\', this.value); closeModal();">' +
         '<option value="">Reclassify...</option></select>' +
-        '<button class="btn btn-reject" onclick="doReject(this, \'' + escHtml(path) + '\'); setTimeout(closeModal, 500)">✗ Reject</button>' +
+        '<button class="btn btn-reject" onclick="doReject(this, \'' + safePath + '\'); setTimeout(closeModal, 500)">Reject</button>' +
         '</div>';
     } else {
       actionHtml = '<div class="modal-filed-note">Already filed in ' + comp + '/</div>';
     }
 
     var popupHtml =
+      '<div class="modal-content">' +
       '<div class="modal-header"><span class="modal-title">' + escHtml(path.split('/').pop()) +
-      '</span><span class="modal-close" onclick="closeModal()">✕</span></div>' +
+      '</span><span class="modal-close" onclick="closeModal()">x</span></div>' +
       '<div class="modal-meta">' + metaHtml + '</div>' +
       '<pre class="modal-body">' + escHtml(data.body || '') + '</pre>' +
-      actionHtml;
+      actionHtml + '</div>';
 
     openModal(popupHtml);
 
-    /* populate compartment dropdown in modal */
     if (isInbox) {
       api('/api/compartments').then(function(comps) {
         var sel = $('.modal-actions .compartment-select');
@@ -296,11 +340,61 @@ window.openNoteModal = function(path) {
   }).catch(function() { showToast('Failed to load note', 'error'); });
 };
 
+/* ---------- Ask tab ---------- */
+$('#ask-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  var q = $('#ask-input').value.trim();
+  if (!q) return;
+
+  $('#ask-error').classList.add('hidden');
+  $('#ask-result').classList.add('hidden');
+  $('#ask-loading').classList.remove('hidden');
+  $('#ask-submit').disabled = true;
+
+  api('/api/ask', { method: 'POST', body: { question: q } }).then(function(r) {
+    $('#ask-loading').classList.add('hidden');
+    $('#ask-submit').disabled = false;
+
+    if (!r.ok) {
+      $('#ask-error').textContent = r.error || 'Ask failed';
+      $('#ask-error').classList.remove('hidden');
+      return;
+    }
+
+    $('#ask-answer').innerHTML = renderWikilinks(r.answer || '');
+    $('#ask-result').classList.remove('hidden');
+
+    var sources = r.sources || [];
+    if (sources.length > 0) {
+      var listHtml = '';
+      sources.forEach(function(s) {
+        listHtml += '<li><span class="wikilink">[[' + escHtml(s.slug) + ']]</span> ' +
+          escHtml(s.title) + ' <span class="path">(' + escHtml(s.path) + ')</span></li>';
+      });
+      $('#ask-sources-list').innerHTML = listHtml;
+      $('#ask-sources').classList.remove('hidden');
+    } else {
+      $('#ask-sources').classList.add('hidden');
+    }
+  }).catch(function() {
+    $('#ask-loading').classList.add('hidden');
+    $('#ask-submit').disabled = false;
+    $('#ask-error').textContent = 'Request failed. Is the LLM reachable?';
+    $('#ask-error').classList.remove('hidden');
+  });
+});
+
 /* ---------- Refresh button ---------- */
-$('#refresh-inbox').addEventListener('click', loadTriage);
+$('#refresh-inbox').addEventListener('click', function() {
+  loadTriage();
+  loadHealth();
+});
 
 /* ---------- Init ---------- */
 loadGlance();
+loadHealth();
 
-/* Poll glance every 30s */
-setInterval(loadGlance, 30000);
+setInterval(function() {
+  loadGlance();
+  loadHealth();
+}, 30000);

@@ -4,7 +4,7 @@
   <title>Dendrite Dashboard</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%2300ff9f' x='20' y='30' width='60' height='50' rx='8'/><rect fill='%230a0a0a' x='32' y='42' width='12' height='12' rx='2'/><rect fill='%230a0a0a' x='56' y='42' width='12' height='12' rx='2'/></svg>">
   <link rel="stylesheet" href="/dashboard/style.css">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
@@ -14,28 +14,57 @@
       <div class="tabs">
         <button class="tab active" data-tab="glance">Quick Glance</button>
         <button class="tab" data-tab="triage">Triage</button>
+        <button class="tab" data-tab="ask">Ask</button>
       </div>
-      <div class="logo">🧠 Dendrite</div>
+      <div class="logo">Dendrite</div>
     </header>
+
+    <div id="health-strip" class="health-strip" aria-label="Vault health"></div>
 
     <main>
       <!-- Quick Glance -->
       <section id="view-glance" class="view active">
         <div class="stats-row" id="stats-cards"></div>
-        <h2 class="section-header">COMPARTMENTS</h2>
+        <h2 class="section-header">Compartments</h2>
         <div id="compartment-bars"></div>
-        <h2 class="section-header">LATEST CAPTURE</h2>
-        <div id="latest-capture"></div>
+        <h2 class="section-header">Latest capture</h2>
+        <div id="latest-capture" class="latest-capture empty-hint">Loading...</div>
       </section>
 
       <!-- Triage -->
       <section id="view-triage" class="view hidden">
-        <h2 class="section-header">INBOX QUEUE <span id="inbox-count-badge" class="count-badge"></span></h2>
+        <h2 class="section-header">Inbox queue <span id="inbox-count-badge" class="count-badge"></span></h2>
         <div id="inbox-queue"></div>
-        <div id="inbox-empty" class="empty-state hidden">Inbox is empty. Nothing to triage.</div>
-        <h2 class="section-header">RECENT CAPTURES</h2>
+        <div id="inbox-empty" class="empty-state hidden">
+          <p class="empty-title">Inbox is empty</p>
+          <p class="empty-detail">New low-confidence captures land here for review.</p>
+        </div>
+        <h2 class="section-header">Recent captures</h2>
         <div id="recent-captures"></div>
-        <button class="btn refresh-btn" id="refresh-inbox">↻ Refresh inbox</button>
+        <div id="recent-empty" class="empty-state hidden">
+          <p class="empty-title">No captures yet</p>
+          <p class="empty-detail">Ingest via CLI, Telegram, or webhook to populate the vault.</p>
+        </div>
+        <button class="btn refresh-btn" id="refresh-inbox">Refresh inbox</button>
+      </section>
+
+      <!-- Ask -->
+      <section id="view-ask" class="view hidden">
+        <h2 class="section-header">Ask the vault</h2>
+        <p class="ask-hint">Answers come from indexed notes with [[wikilink]] citations.</p>
+        <form id="ask-form" class="ask-form">
+          <textarea id="ask-input" class="ask-input" rows="4" placeholder="What did I learn about agent orchestration?"></textarea>
+          <button type="submit" class="btn btn-ask" id="ask-submit">Ask</button>
+        </form>
+        <div id="ask-loading" class="ask-loading hidden">Searching vault...</div>
+        <div id="ask-result" class="ask-result hidden">
+          <div id="ask-answer" class="ask-answer"></div>
+          <div id="ask-sources" class="ask-sources hidden">
+            <h3 class="ask-sources-title">Sources</h3>
+            <ul id="ask-sources-list"></ul>
+          </div>
+        </div>
+        <div id="ask-error" class="ask-error hidden"></div>
       </section>
     </main>
 

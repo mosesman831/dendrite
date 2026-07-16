@@ -183,7 +183,8 @@ flowchart LR
 | Channel | Description |
 |---------|-------------|
 | **Telegram** | Text + voice, `/sort` preview, `/undo`, `/inbox`, inline corrections. |
-| **HTTP webhook** | `POST /ingest` for Shortcuts, IFTTT, custom scripts. Bearer auth. |
+| **HTTP webhook** | `POST /ingest` for Shortcuts, IFTTT, custom scripts. Bearer auth. See [bookmarklet](DOCS.md#bookmarklet) and [iOS Shortcuts](DOCS.md#ios-shortcuts). |
+| **Web dashboard** | `http://localhost:8787/dashboard` when `dendrite serve` is running. Quick glance, triage, and ask. |
 | **CLI** | `dendrite ingest "..."` and `dendrite ingest --file note.ogg`. |
 | **Daily prompt** | Optional cron — "What did you learn today?" via Telegram. |
 

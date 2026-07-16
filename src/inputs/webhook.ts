@@ -33,11 +33,13 @@ export function mountWebhookRoute(
       }
     }
 
-    const { text, source, id, meta } = req.body as {
+    const { text, source, id, meta, url, title } = req.body as {
       text?: string;
       source?: string;
       id?: string;
       meta?: Record<string, unknown>;
+      url?: string;
+      title?: string;
     };
 
     if (!text?.trim()) {
@@ -45,12 +47,41 @@ export function mountWebhookRoute(
       return;
     }
 
+    const resources: string[] = [];
+    const pageUrl = url?.trim();
+    const pageTitle = title?.trim();
+    if (pageUrl) resources.push(pageUrl);
+    if (pageTitle && pageTitle !== pageUrl) resources.push(pageTitle);
+
+    const dumpMeta: Record<string, unknown> = { ...(meta ?? {}) };
+    if (pageUrl) dumpMeta.url = pageUrl;
+    if (pageTitle) dumpMeta.title = pageTitle;
+    if (resources.length > 0) {
+      const prior =
+        dumpMeta.extracted && typeof dumpMeta.extracted === "object"
+          ? (dumpMeta.extracted as Record<string, unknown>)
+          : {};
+      const priorResources = Array.isArray(prior.resources)
+        ? prior.resources.map(String)
+        : [];
+      dumpMeta.extracted = {
+        ...prior,
+        resources: [...new Set([...priorResources, ...resources])],
+      };
+    }
+
+    let captureText = text.trim();
+    if (pageUrl) {
+      const sourceLines = pageTitle ? [`Page: ${pageTitle}`, pageUrl] : [pageUrl];
+      captureText = `${captureText}\n\n${sourceLines.join("\n")}`;
+    }
+
     const dump: Dump = {
-      id: id ?? `webhook-${hashId(text + Date.now())}`,
+      id: id ?? `webhook-${hashId(captureText + Date.now())}`,
       source: "webhook",
       receivedAt: new Date().toISOString(),
-      text,
-      meta,
+      text: captureText,
+      meta: Object.keys(dumpMeta).length > 0 ? dumpMeta : undefined,
     };
 
     try {

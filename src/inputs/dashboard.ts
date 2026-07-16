@@ -8,6 +8,8 @@ import type { DendriteConfig } from "../config.js";
 import type { CompartmentsFile } from "../types.js";
 import { loadCompartments } from "../config.js";
 import { moveNoteToCompartment, deleteNote, approveNote } from "../pipeline/triage.js";
+import { answerQuestion } from "../pipeline/answer.js";
+import type { DendriteIndex } from "../pipeline/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -27,6 +29,40 @@ function checkAuth(config: DendriteConfig, req: Request): boolean {
 
 function authFail(res: Response): void {
   res.status(401).json({ ok: false, error: "unauthorized" });
+}
+
+function countDanglingLinks(vaultPath: string, index: DendriteIndex): number {
+  const notes = index.listAllNotes();
+  const knownSlugs = new Set<string>();
+  for (const note of notes) {
+    const slug = note.path.replace(/\.md$/i, "").split("/").pop();
+    if (slug) knownSlugs.add(slug.toLowerCase());
+  }
+
+  const wikilinkRe = /\[\[([^\]]+)\]\]/g;
+  const journalRe = /^\d{2}-\d{2}-\d{4}$/;
+  let dangling = 0;
+
+  for (const note of notes) {
+    const fullPath = join(vaultPath, note.path);
+    if (!existsSync(fullPath)) continue;
+    let text: string;
+    try {
+      text = readFileSync(fullPath, "utf8");
+    } catch {
+      continue;
+    }
+    let match: RegExpExecArray | null;
+    while ((match = wikilinkRe.exec(text)) !== null) {
+      const raw = match[1];
+      const target = raw.split(/[|#]/)[0].trim().toLowerCase();
+      if (!target) continue;
+      if (journalRe.test(target)) continue;
+      if (!knownSlugs.has(target)) dangling += 1;
+    }
+  }
+
+  return dangling;
 }
 
 export function mountDashboard(
@@ -55,7 +91,32 @@ export function mountDashboard(
   });
 
   app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, vault: vaultPath });
+    const total = index.listAllNotes().length;
+    const embedded = index.countEmbeddings();
+    const pct = total ? Math.round((embedded / total) * 100) : 0;
+    res.json({
+      ok: true,
+      vault: vaultPath,
+      embeddings_enabled: config.index.embeddings.enabled,
+      embedding_coverage: { embedded, total, pct },
+      queue: index.queueStatusCounts(),
+      dangling_links: countDanglingLinks(vaultPath, index),
+    });
+  });
+
+  app.post("/api/ask", async (req, res) => {
+    const question = String(req.body?.question ?? "").trim();
+    if (!question) {
+      res.status(400).json({ ok: false, error: "question required" });
+      return;
+    }
+    try {
+      const result = await answerQuestion(index, vaultPath, question, config, ctx.llm);
+      res.json({ ok: true, ...result });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ ok: false, error: msg });
+    }
   });
 
   // --- Read endpoints ---

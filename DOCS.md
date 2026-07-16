@@ -6,6 +6,7 @@ second brain with Dendrite.
 **Quick links:** [Install](#installation) · [First capture](#first-capture) ·
 [Telegram](#telegram-bot) · [CLI](#cli-reference) · [Vault](#vault-layout) ·
 [MCP](#mcp-for-agents) · [Maintenance](#vault-maintenance) ·
+[Bookmarklet](#bookmarklet) · [iOS Shortcuts](#ios-shortcuts) ·
 [Troubleshooting](#troubleshooting)
 
 ---
@@ -358,6 +359,94 @@ curl -X POST http://localhost:8787/ingest \
 ```bash
 curl http://localhost:8787/health
 ```
+
+---
+
+## Bookmarklet
+
+Capture a browser selection (or page title when nothing is selected) to your
+Dendrite webhook. No extension install required.
+
+**Prerequisites:** `dendrite serve` running with `inputs.webhook.enabled: true`,
+and `DENDRITE_WEBHOOK_TOKEN` set in `.env`.
+
+1. Create a new browser bookmark.
+2. Set the name to something like `Capture to Dendrite`.
+3. Paste this as the URL (edit host, port, and token):
+
+```javascript
+javascript:(function(){var t=window.getSelection().toString()||document.title;var u=location.href;var h='http://localhost:8787/ingest';var k='YOUR_TOKEN';fetch(h,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+k},body:JSON.stringify({text:t,url:u,title:document.title,source:'webhook',meta:{via:'bookmarklet'}})}).then(function(r){return r.json().then(function(j){alert(r.ok?'Captured':'Error: '+(j.error||r.status));});}).catch(function(e){alert('Failed: '+e);});})();
+```
+
+4. On any page, select text and click the bookmark. With no selection, the page
+   title is sent instead.
+
+The webhook stores `url` and `title` in `dump.meta` and appends them to the
+capture text so `reads/` notes get a source link.
+
+**Remote server:** replace `localhost:8787` with your host. Use HTTPS in
+production. Tunnel with Tailscale, Cloudflare Tunnel, or similar if the vault
+daemon runs at home.
+
+---
+
+## iOS Shortcuts
+
+Send captures from iPhone or iPad to the same webhook. Works for typed notes,
+clipboard text, Safari shares, and voice (with transcription handled elsewhere).
+
+**Prerequisites:** webhook enabled, token set, server reachable from the phone
+(same Wi-Fi, VPN, or public HTTPS endpoint).
+
+### Text capture shortcut
+
+1. Open **Shortcuts** and create a new shortcut.
+2. Add **Ask for Input** (text). Prompt: `Capture to Dendrite`.
+3. Add **Get Contents of URL**:
+   - URL: `http://YOUR_HOST:8787/ingest` (or your HTTPS URL)
+   - Method: `POST`
+   - Headers:
+     - `Content-Type`: `application/json`
+     - `Authorization`: `Bearer YOUR_TOKEN`
+   - Request Body: JSON
+   - JSON body:
+
+```json
+{
+  "text": "Shortcut Input",
+  "source": "shortcuts",
+  "meta": { "via": "ios-shortcuts" }
+}
+```
+
+   Map `Shortcut Input` to the output of **Ask for Input**.
+
+4. Add **Show Notification** on success or failure (optional).
+5. Add the shortcut to the Home Screen or Share Sheet.
+
+### Safari page capture
+
+Duplicate the shortcut above, but replace the JSON body with:
+
+```json
+{
+  "text": "Shortcut Input",
+  "url": "Provided Input",
+  "title": "Provided Input",
+  "source": "shortcuts",
+  "meta": { "via": "ios-shortcuts", "from": "safari" }
+}
+```
+
+Use a **Share Sheet** trigger. Pass the page URL as `Provided Input`. Set `text`
+to the page title or a user prompt. Dendrite receives `url` and `title` like the
+bookmarklet.
+
+### Voice note (without Telegram)
+
+Record audio in Shortcuts, upload to a transcription endpoint (OpenAI Whisper,
+local whisper.cpp, etc.), then POST the transcript to `/ingest` in a second step.
+Telegram voice capture is simpler if you already run the bot.
 
 ---
 
