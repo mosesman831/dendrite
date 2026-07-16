@@ -240,6 +240,28 @@ templates:
 No templates ship by default, so behavior is unchanged until you add a
 `templates/<compartment>.md` file. See [Per-compartment templates](#per-compartment-templates).
 
+### Organization, tasks, growth, MCP writes
+
+```yaml
+organization: folders              # or flat → brain/<slug>.md
+
+tasks:
+  render: frontmatter              # frontmatter | checkbox | both
+
+growth:
+  max_sections: 25
+  max_tokens: 6000
+  policy: off                      # off | summarize | split
+
+mcp:
+  write:
+    enabled: false                 # opt-in capture_note tool
+    require_review: true           # force inbox when writing via MCP
+```
+
+Convert an existing vault between layouts with `dendrite migrate --to-flat` or
+`--to-folders` (always try `--dry-run` first).
+
 ---
 
 ## Brain compartments
@@ -455,14 +477,14 @@ Telegram voice capture is simpler if you already run the bot.
 | Command | Description |
 |---------|-------------|
 | `dendrite init` | Interactive setup wizard |
-| `dendrite doctor [--stats] [--json]` | Health check + metrics (embedding coverage, queue health, dangling links) |
+| `dendrite doctor [--stats] [--json]` | Health check + metrics (coverage, queue, dangling links, segments/dump, cost estimate) |
 | `dendrite ingest "text"` | Classify and write one capture |
 | `dendrite ingest --dry-run "text"` | Preview without writing |
 | `dendrite ingest --file audio.ogg` | Transcribe + ingest audio |
 | `dendrite ask "question"` | RAG answer from your vault, with citations |
 | `dendrite eval` | Classification accuracy on a golden dataset |
-| `dendrite serve` | Run daemon |
-| `dendrite mcp` | MCP read-server (stdio) |
+| `dendrite serve` | Run daemon (Telegram, webhook, dashboard) |
+| `dendrite mcp` | MCP server (stdio; read-only unless `mcp.write.enabled`) |
 | `dendrite reindex` | Rebuild search index from vault |
 | `dendrite inbox` | List inbox notes |
 | `dendrite sort [--dry-run]` | LLM-sort inbox + unfiled imports |
@@ -470,6 +492,9 @@ Telegram voice capture is simpler if you already run the bot.
 | `dendrite sort --imports-only` | Only vault-root / scratch imports |
 | `dendrite repair [--dry-run]` | Split junk-drawer notes |
 | `dendrite migrate [--dry-run]` | Upgrade frontmatter schema |
+| `dendrite migrate --to-flat` | Move notes to `brain/<slug>.md` layout |
+| `dendrite migrate --to-folders` | Move flat notes back into compartment folders |
+| `dendrite merge a.md b.md` | Merge two notes; rewrite wikilinks; archive absorbed |
 | `dendrite embed [--force]` | Build embedding vectors |
 | `dendrite remove --last` | Undo most recent capture |
 | `dendrite remove --id <dumpId>` | Undo specific capture |
@@ -664,9 +689,11 @@ Register in Cursor / Claude Code / Hermes:
 | `list_compartments` | Compartment list + counts |
 | `recent_notes` | Recently updated |
 | `get_backlinks` | What links to a note |
-| `get_capture_siblings` | Reconstruct split capture |
+| `get_capture_siblings` | Reconstruct split capture (+ original transcript) |
+| `capture_note` | Opt-in write (`mcp.write.enabled`); same pipeline as webhook |
 
-**Read-only.** To add knowledge, use CLI/Telegram/webhook — not MCP.
+Writes stay off by default. Set `mcp.write.enabled: true` only for sandboxed agents;
+`require_review: true` files captures into `inbox/` first.
 
 See [AGENTS.md](AGENTS.md) for agent contribution rules.
 

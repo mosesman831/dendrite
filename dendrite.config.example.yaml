@@ -85,6 +85,18 @@ organization: folders
 tasks:
   render: frontmatter
 
+# Cap append-heavy notes (off by default). Archives pre-change copies.
+growth:
+  max_sections: 25
+  max_tokens: 6000
+  policy: off                  # off | summarize | split
+
+# Gated MCP write tool (disabled by default)
+mcp:
+  write:
+    enabled: false
+    require_review: true
+
 queue:
   durable: true
   max_concurrency: 2

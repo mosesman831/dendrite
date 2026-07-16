@@ -69,19 +69,17 @@ Data-model anchors this spec reuses: `Dump`, `Classification`, `PipelineResult`,
 
 ### 2.1 Active polish wave (v0.3.1)
 
-Build these next; each maps to an existing section:
-
 | Work item | Spec | Status |
 |-----------|------|--------|
-| Doctor cost + avg segments/dump | §7.3 | building |
-| Tasks checkbox / Obsidian Tasks lines | §6.6 | building |
-| Flat organization mode | §6.5 | building |
-| Note growth cap (summarize\|split\|off) | §6.2 | building |
-| `dendrite merge` merge-back | §6.4 | building |
-| `get_capture_siblings` + dump transcript | §5 siblings enrichment | building |
-| Gated MCP `capture_note` | §5.2 | building |
-| Bookmarklet + iOS Shortcuts recipes | §4.2 / §4.5 | building |
-| Dashboard UX polish (Ask tab, health) | dashboard + §5.3 | building |
+| Doctor cost + avg segments/dump | §7.3 | shipped |
+| Tasks checkbox / Obsidian Tasks lines | §6.6 | shipped |
+| Flat organization mode | §6.5 | shipped |
+| Note growth cap (summarize\|split\|off) | §6.2 | shipped |
+| `dendrite merge` merge-back | §6.4 | shipped |
+| `get_capture_siblings` + dump transcript | siblings enrichment | shipped |
+| Gated MCP `capture_note` | §5.2 | shipped |
+| Bookmarklet + iOS Shortcuts recipes | §4.2 / §4.5 | shipped |
+| Dashboard UX polish (Ask tab, health) | dashboard + §5.3 | shipped |
 
 ---
 
