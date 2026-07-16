@@ -100,7 +100,28 @@ const ConfigSchema = z.object({
     })
     .default({}),
   organization: z.enum(["folders", "flat"]).default("folders"),
-  tasks: z.object({ render: z.enum(["frontmatter"]).default("frontmatter") }).default({}),
+  tasks: z
+    .object({
+      render: z.enum(["frontmatter", "checkbox", "both"]).default("frontmatter"),
+    })
+    .default({}),
+  growth: z
+    .object({
+      max_sections: z.number().int().positive().default(25),
+      max_tokens: z.number().int().positive().default(6000),
+      policy: z.enum(["off", "summarize", "split"]).default("off"),
+    })
+    .default({}),
+  mcp: z
+    .object({
+      write: z
+        .object({
+          enabled: z.boolean().default(false),
+          require_review: z.boolean().default(true),
+        })
+        .default({}),
+    })
+    .default({}),
   dashboard: z
     .object({
       enabled: z.boolean().default(true),

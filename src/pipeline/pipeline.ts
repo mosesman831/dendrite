@@ -14,6 +14,7 @@ import {
 import { resolveTarget } from "./resolve.js";
 import { crosslink } from "./crosslink.js";
 import { writeNote, addBacklink } from "./write.js";
+import { applyGrowthCap } from "./growth.js";
 import { writeVaultCatalog } from "./catalog.js";
 import { parseWikilink, wikilink } from "../util/slug.js";
 
@@ -220,6 +221,12 @@ export async function processDump(
       configDir,
     );
 
+    let growthContPath: string | undefined;
+    if (config.growth.policy !== "off") {
+      const growth = applyGrowthCap(config.vault.path, writeResult.notePath, config);
+      growthContPath = growth.contNotePath;
+    }
+
     index.upsertNote({
       path: target.notePath,
       compartment: target.compartment,
@@ -230,6 +237,18 @@ export async function processDump(
       updated_at: new Date().toISOString(),
     });
 
+    if (growthContPath) {
+      index.upsertNote({
+        path: growthContPath,
+        compartment: target.compartment,
+        title: `${classification.title} (continued)`,
+        entities: classification.entities,
+        tags: classification.tags,
+        summary: classification.summary,
+        updated_at: new Date().toISOString(),
+      });
+    }
+
     index.recordDump(
       childDump.id,
       dump.source,
@@ -237,6 +256,7 @@ export async function processDump(
       target.notePath,
       target.compartment,
       classification.confidence,
+      i === 0 ? transcript : childDump.text,
     );
 
     for (const link of uniqueLinks) {

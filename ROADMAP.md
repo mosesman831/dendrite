@@ -37,11 +37,17 @@ Write path = Dendrite. Read/reason path = your agent (Hermes, Cursor, Claude Cod
 
 | Priority | Feature | Notes |
 |----------|---------|-------|
-| 1 | **Web dashboard** 📋 | Inbox triage queue, compartment browser, brain health stats, correction history. Thin UI over existing index + MCP. |
-| 2 | **Per-compartment templates** 📋 | Custom note headers/callouts per compartment so output matches your Obsidian aesthetic. |
+| 1 | **Web dashboard** ✅ | Inbox triage, Ask tab, health strip, compartment browser (`dendrite serve`). |
+| 2 | **Per-compartment templates** ✅ | `templates/<compartment>.md` with `{{vars}}`. |
 | 3 | **npm publish** 📋 | `npm install -g dendrite` without cloning. |
-| 4 | **Golden eval set** 📋 | ~50 labeled dumps, CI accuracy gate on classification routing. |
-| 5 | **Doctor improvements** 📋 | Embedding coverage %, avg segments/dump guardrail, cost estimate per dump. |
+| 4 | **Golden eval set** ✅ | `dendrite eval` + `eval/dataset.jsonl` (expand toward ~50 + CI gate). |
+| 5 | **Doctor improvements** ✅ | Coverage, queue, dangling links, avg segments/dump, cost estimate, `--json`. |
+
+### v0.3.1 polish wave ✅
+
+Merge-back, growth cap, flat org, tasks checkbox render, gated MCP `capture_note`,
+siblings transcript, bookmarklet + iOS Shortcuts docs. See [SPEC.md](SPEC.md) §2.1
+and [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -50,9 +56,9 @@ Write path = Dendrite. Read/reason path = your agent (Hermes, Cursor, Claude Cod
 | Priority | Feature | Notes |
 |----------|---------|-------|
 | 1 | **Email input** 📋 | Forward-to-ingest (AgentMail / SES). Strip signatures → classify → `reads/` or `inbox/`. |
-| 2 | **Browser extension capture** 💡 | Highlight → webhook. |
+| 2 | **Browser extension capture** 💡 | Highlight → webhook (bookmarklet shipped as interim). |
 | 3 | **Obsidian plugin (read-only)** 💡 | In-vault status: last capture, inbox count, link to dendrite doctor. |
-| 4 | **iOS Shortcuts recipe** 📋 | Documented webhook + audio payload for voice capture without Telegram. |
+| 4 | **iOS Shortcuts recipe** ✅ | Documented webhook + audio payload in DOCS.md. |
 
 ---
 
@@ -60,10 +66,10 @@ Write path = Dendrite. Read/reason path = your agent (Hermes, Cursor, Claude Cod
 
 | Priority | Feature | Notes |
 |----------|---------|-------|
-| 1 | **MCP `capture_note` (gated)** 💡 | Optional write tool for sandboxed agents. Ingestion stays CLI/Telegram/webhook by default. |
+| 1 | **MCP `capture_note` (gated)** ✅ | Opt-in `mcp.write.enabled`; audit log; `require_review` → inbox. |
 | 2 | **Remote MCP transport** 💡 | HTTP/SSE with bearer auth for agents on other machines. |
-| 3 | **Merge-back correction** 📋 | User says two notes were one thought → physical merge (§50.12). |
-| 4 | **`get_capture_siblings` enrichment** 📋 | Include original transcript from dumps table in MCP response. |
+| 3 | **Merge-back correction** ✅ | `dendrite merge <a> <b> [--into A\|B] [--dry-run]`. |
+| 4 | **`get_capture_siblings` enrichment** ✅ | Original transcript from `dumps.text`. |
 | 5 | **Family / multi-user visibility** 💡 | Per-compartment `private` / `shared`; MCP filters by identity. |
 
 ---
@@ -73,10 +79,10 @@ Write path = Dendrite. Read/reason path = your agent (Hermes, Cursor, Claude Cod
 | Priority | Feature | Notes |
 |----------|---------|-------|
 | 1 | **Stable vault schema** 📋 | `dendrite_version` migration path documented; no breaking changes without migrate. |
-| 2 | **Note growth cap + auto-summary** 📋 | Split or summarize notes that exceed N sections / tokens. |
-| 3 | **Flat organization mode** 📋 | `organization: flat` — single folder, compartment as tag/frontmatter only. |
+| 2 | **Note growth cap + auto-summary** ✅ | `growth.policy: summarize\|split\|off` (LLM summarize still heuristic stubs). |
+| 3 | **Flat organization mode** ✅ | `organization: flat` + migrate converters. |
 | 4 | **Hosted option** 💡 | Managed daemon + phone app for non-technical users (future business model). |
-| 5 | **Tasks plugin format** 📋 | Optional `- [ ] task ➕ date` rendering instead of frontmatter-only tasks. |
+| 5 | **Tasks plugin format** ✅ | `tasks.render: checkbox\|both` with optional `📅` date. |
 
 ---
 

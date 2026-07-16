@@ -75,10 +75,27 @@ repair:
   min_sections: 3
   max_title_relevance: 0.34
 
+# folders: brain/<compartment>/<slug>.md (default)
+# flat: brain/<slug>.md — compartment lives in frontmatter only
 organization: folders
 
+# frontmatter: tasks[] in YAML only (default)
+# checkbox: Obsidian-Tasks lines in body (- [ ] task 📅 date)
+# both: frontmatter mirror + checkbox lines
 tasks:
   render: frontmatter
+
+# Cap append-heavy notes (off by default). Archives pre-change copies.
+growth:
+  max_sections: 25
+  max_tokens: 6000
+  policy: off                  # off | summarize | split
+
+# Gated MCP write tool (disabled by default)
+mcp:
+  write:
+    enabled: false
+    require_review: true
 
 queue:
   durable: true

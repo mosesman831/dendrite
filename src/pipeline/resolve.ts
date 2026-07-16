@@ -8,6 +8,7 @@ import { disambiguateNote } from "./classify.js";
 import type { ChatProvider } from "../providers/llm.js";
 import { slugify } from "../util/slug.js";
 import { dailyNoteFilename } from "../util/datetime.js";
+import { resolveBrainNotePath } from "../util/vault-path.js";
 
 export async function resolveTarget(
   dump: Dump,
@@ -35,6 +36,10 @@ export async function resolveTarget(
   }
 
   if (classification.confidence < config.classification.confidence.confirm_below) {
+    compartment = "inbox";
+  }
+
+  if (dump.meta?.require_review) {
     compartment = "inbox";
   }
 
@@ -97,6 +102,11 @@ export async function resolveTarget(
     action = "create_new";
   }
 
-  const notePath = join(finalDef.path, `${slug}.md`).replace(/\\/g, "/");
+  const notePath = resolveBrainNotePath(
+    config.organization,
+    finalDef.path,
+    slug,
+    finalDef.append_only,
+  );
   return { compartment, notePath, slug, action };
 }

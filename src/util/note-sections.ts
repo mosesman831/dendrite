@@ -41,3 +41,18 @@ export function parseCaptureSections(content: string): ParsedCaptureSection[] {
 export function countCaptureSections(content: string): number {
   return parseCaptureSections(content).length;
 }
+
+/** Rough token estimate: words × 1.3, or chars ÷ 4 when no word boundaries. */
+export function estimateTokens(text: string): number {
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length > 0) return Math.ceil(words.length * 1.3);
+  return Math.ceil(trimmed.length / 4);
+}
+
+export const SUMMARY_AUTO_HEADING = "## Summary (auto)";
+
+export function hasSummaryAutoBlock(content: string): boolean {
+  return content.includes(SUMMARY_AUTO_HEADING);
+}

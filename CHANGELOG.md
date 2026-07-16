@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.3.1 — Unreleased
+
+### Features
+
+- `dendrite merge <a> <b>` — physically merge two notes, rewrite `[[wikilinks]]`, archive the absorbed note (`--dry-run`, `--into A|B`).
+- Note growth cap (`growth.policy: summarize|split|off`) — when a note exceeds section/token limits, auto-summarize old captures or spin a `-cont` sibling. Archives pre-change copies under `_dendrite/repaired/`.
+- Flat organization (`organization: flat`) — new notes at `brain/<slug>.md`; `dendrite migrate --to-flat` / `--to-folders` converters.
+- Tasks checkbox render (`tasks.render: frontmatter|checkbox|both`) — Obsidian Tasks-compatible `- [ ]` lines with optional `📅` date.
+- Doctor: avg segments/dump guardrail + estimated USD cost per dump / last 7d (`--json` fields `segment_stats`, `cost_estimate`, `warnings`).
+- MCP `capture_note` (opt-in via `mcp.write.enabled`) with write audit log; `require_review` forces inbox.
+- `get_capture_siblings` returns original dump `transcript` / per-segment `text` (stored on `dumps.text`).
+- Dashboard Ask tab + health strip; webhook accepts optional `url`/`title`.
+- Docs: bookmarklet + iOS Shortcuts webhook recipes.
+
+### Docs
+
+- Restored detailed [SPEC.md](SPEC.md) with polish-wave tracking.
+
 ## 0.3.0 — Unreleased
 
 ### Features

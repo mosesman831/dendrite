@@ -67,6 +67,14 @@ CREATE TABLE IF NOT EXISTS embeddings (
   model TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS write_audit (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  agent_id TEXT NOT NULL,
+  tool TEXT NOT NULL,
+  dump_id TEXT NOT NULL,
+  ts TEXT NOT NULL
+);
 `;
 
 export class DendriteIndex {
@@ -77,7 +85,21 @@ export class DendriteIndex {
     this.db = new Database(dbPath);
     this.db.pragma("journal_mode = WAL");
     this.db.exec(SCHEMA);
+    this.migrateSchema();
     this.setupFtsTriggers();
+  }
+
+  private migrateSchema(): void {
+    const cols = this.db
+      .prepare(`PRAGMA table_info(dumps)`)
+      .all() as Array<{ name: string }>;
+    if (!cols.some((c) => c.name === "text")) {
+      try {
+        this.db.exec(`ALTER TABLE dumps ADD COLUMN text TEXT`);
+      } catch {
+        /* column may already exist */
+      }
+    }
   }
 
   private setupFtsTriggers(): void {
@@ -123,10 +145,11 @@ export class DendriteIndex {
     confidence: number;
     source: string;
     received_at: string;
+    text: string | null;
   }> {
     return this.db
       .prepare(
-        `SELECT id, note_path, compartment, confidence, source, received_at FROM dumps
+        `SELECT id, note_path, compartment, confidence, source, received_at, text FROM dumps
          WHERE id = ? OR id LIKE ?
          ORDER BY id`,
       )
@@ -137,6 +160,7 @@ export class DendriteIndex {
       confidence: number;
       source: string;
       received_at: string;
+      text: string | null;
     }>;
   }
 
@@ -154,9 +178,15 @@ export class DendriteIndex {
     title: string;
     summary: string;
     segmentIndex: number | null;
+    text?: string;
+    transcript?: string;
   }> {
     const parentId = splitGroup.includes("#") ? splitGroup.replace(/#\d+$/, "") : splitGroup;
     const family = this.getDumpFamily(parentId);
+    const parentTranscript =
+      family.find((r) => r.id === parentId)?.text ??
+      family.find((r) => r.id === `${parentId}#0`)?.text ??
+      undefined;
     const byPath = new Map(family.map((r) => [r.note_path, r]));
 
     if (vaultPath) {
@@ -175,6 +205,7 @@ export class DendriteIndex {
             confidence: Number(data.confidence ?? 0),
             source: String(data.source ?? "unknown"),
             received_at: String(data.created ?? note.updated_at),
+            text: null,
           });
         } catch {
           /* skip unreadable */
@@ -187,6 +218,7 @@ export class DendriteIndex {
       const segPart = hash >= 0 ? row.id.slice(hash + 1) : "";
       const segIdx = /^\d+$/.test(segPart) ? Number.parseInt(segPart, 10) : null;
       const note = this.getNote(row.note_path);
+      const rowText = row.text ?? undefined;
       return {
         dumpId: row.id,
         notePath: row.note_path,
@@ -197,6 +229,8 @@ export class DendriteIndex {
         title: note?.title ?? row.note_path,
         summary: note?.summary ?? "",
         segmentIndex: segIdx,
+        text: rowText,
+        transcript: parentTranscript ?? rowText,
       };
     });
   }
@@ -225,13 +259,29 @@ export class DendriteIndex {
     notePath: string,
     compartment: string,
     confidence: number,
+    text?: string,
   ): void {
     this.db
       .prepare(
-        `INSERT OR REPLACE INTO dumps (id, source, received_at, note_path, compartment, confidence, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO dumps (id, source, received_at, note_path, compartment, confidence, created_at, text)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(id, source, receivedAt, notePath, compartment, confidence, new Date().toISOString());
+      .run(
+        id,
+        source,
+        receivedAt,
+        notePath,
+        compartment,
+        confidence,
+        new Date().toISOString(),
+        text ?? null,
+      );
+  }
+
+  recordWriteAudit(agentId: string, tool: string, dumpId: string): void {
+    this.db
+      .prepare(`INSERT INTO write_audit (agent_id, tool, dump_id, ts) VALUES (?, ?, ?, ?)`)
+      .run(agentId, tool, dumpId, new Date().toISOString());
   }
 
   upsertNote(note: NoteRecord): void {
@@ -673,6 +723,39 @@ export class DendriteIndex {
       source: row.source,
       received_at: row.received_at,
     }));
+  }
+
+  /** Dump row counts and avg segments per parent capture (strips `#N` suffix). */
+  getDumpSegmentStats(since?: string): {
+    total_segment_rows: number;
+    unique_parent_dumps: number;
+    avg_segments_per_dump: number;
+  } {
+    const where = since ? "WHERE received_at >= ?" : "";
+    const params = since ? [since] : [];
+    const totalRow = this.db
+      .prepare(`SELECT COUNT(*) as c FROM dumps ${where}`)
+      .get(...params) as { c: number };
+    const parentRow = this.db
+      .prepare(
+        `SELECT COUNT(DISTINCT
+           CASE
+             WHEN instr(id, '#') > 0 THEN substr(id, 1, instr(id, '#') - 1)
+             ELSE id
+           END
+         ) as c
+         FROM dumps
+         ${where}`,
+      )
+      .get(...params) as { c: number };
+    const uniqueParents = parentRow.c;
+    const total = totalRow.c;
+    const avg = uniqueParents > 0 ? total / uniqueParents : 0;
+    return {
+      total_segment_rows: total,
+      unique_parent_dumps: uniqueParents,
+      avg_segments_per_dump: Math.round(avg * 100) / 100,
+    };
   }
 }
 

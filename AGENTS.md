@@ -15,34 +15,40 @@ Dendrite receives raw captures (Telegram, webhook, CLI), classifies them with an
 | `src/cli.ts` | All CLI commands |
 | `src/pipeline/` | classify → resolve → crosslink → write |
 | `src/pipeline/multi-classify.ts` | Multi-topic + laundry-list splitting |
+| `src/pipeline/growth.ts` | Note growth cap (summarize / split) |
+| `src/pipeline/merge-notes.ts` | Physical note merge + backlink rewrite |
 | `src/pipeline/migrations.ts` | Frontmatter version migrations |
 | `src/pipeline/repair-detect.ts` | Junk-drawer detection |
 | `src/pipeline/search.ts` | Hybrid FTS + embeddings search |
 | `src/commands/sort.ts` | Vault sort + Telegram preview helpers |
-| `src/commands/migrate.ts` | `dendrite migrate` |
+| `src/commands/migrate.ts` | `dendrite migrate` (+ `--to-flat` / `--to-folders`) |
+| `src/commands/merge.ts` | `dendrite merge` |
 | `src/commands/repair.ts` | `dendrite repair` |
 | `src/commands/embed.ts` | `dendrite embed` |
 | `src/inputs/telegram.ts` | Bot, `/sort`, `/undo`, corrections |
-| `src/mcp/server.ts` | MCP read tools |
+| `src/inputs/dashboard.ts` | Web dashboard API + static views |
+| `src/mcp/server.ts` | MCP read tools (+ gated `capture_note`) |
 | `dendrite.config.yaml` | Runtime config |
+| `SPEC.md` | Detailed feature specs |
 
 ## CLI commands
 
 ```bash
 npm run build && npm test          # 31 checks — run before/after changes
 
-dendrite doctor [--stats] [--json]   # + embedding coverage, queue health, dangling links
+dendrite doctor [--stats] [--json]   # coverage, queue, dangling links, segments, cost
 dendrite ingest "text" [--dry-run]
 dendrite ask "question"              # RAG answer over the vault, with [[wikilink]] citations
 dendrite sort [--dry-run]            # inbox + unfiled imports → brain/
 dendrite repair [--dry-run]          # split junk-drawer notes
-dendrite migrate [--dry-run]         # upgrade frontmatter schema
+dendrite migrate [--dry-run]         # frontmatter schema; also --to-flat / --to-folders
+dendrite merge a.md b.md [--dry-run] # merge-back two notes + rewrite wikilinks
 dendrite embed [--force]             # build semantic vectors (hybrid search)
 dendrite eval                        # classifier accuracy on golden dataset (dry-run)
 dendrite remove --last
 dendrite reindex
 dendrite mcp
-dendrite serve
+dendrite serve                        # telegram + webhook + dashboard
 ```
 
 ### Telegram (`dendrite serve`)
@@ -63,9 +69,10 @@ dendrite serve
 | `list_compartments` | Compartment list + counts |
 | `recent_notes` | Recently updated notes |
 | `get_backlinks` | Notes linking to a path |
-| `get_capture_siblings` | Reconstruct a split capture by `split_group` / parent dump id |
+| `get_capture_siblings` | Reconstruct a split capture by `split_group` / parent dump id (+ transcript) |
+| `capture_note` | **Opt-in** write tool (`mcp.write.enabled`) — same pipeline as webhook |
 
-**Read-only.** Ingestion via CLI/Telegram/webhook only.
+Default is **read-only.** Enable writes only for sandboxed agents; `require_review` routes to inbox.
 
 ```json
 {
@@ -118,6 +125,20 @@ repair:
   min_sections: 3
   max_title_relevance: 0.34
 
+organization: folders          # or flat
+tasks:
+  render: frontmatter          # frontmatter | checkbox | both
+
+growth:
+  max_sections: 25
+  max_tokens: 6000
+  policy: off                  # off | summarize | split
+
+mcp:
+  write:
+    enabled: false
+    require_review: true
+
 index.embeddings:
   enabled: false
   model: text-embedding-3-small
@@ -138,9 +159,10 @@ npm test → 31/31 passed
 
 Covers: classification, laundry-list, multi-split, idempotency, sort/migrate/repair dry-run, capture siblings, embedding utils, webhook, reindex.
 
-## Not yet built (v0.3+)
+## Not yet built (next)
 
-Email input, MCP `capture_note`, merge-back correction. See [ROADMAP.md](ROADMAP.md) and [SPEC.md](SPEC.md).
+Email input, remote MCP HTTP/SSE, browser extension, Obsidian plugin, npm publish.
+See [ROADMAP.md](ROADMAP.md) and [SPEC.md](SPEC.md).
 
 ## Cursor Cloud specific instructions
 

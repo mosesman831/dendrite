@@ -6,6 +6,7 @@ second brain with Dendrite.
 **Quick links:** [Install](#installation) · [First capture](#first-capture) ·
 [Telegram](#telegram-bot) · [CLI](#cli-reference) · [Vault](#vault-layout) ·
 [MCP](#mcp-for-agents) · [Maintenance](#vault-maintenance) ·
+[Bookmarklet](#bookmarklet) · [iOS Shortcuts](#ios-shortcuts) ·
 [Troubleshooting](#troubleshooting)
 
 ---
@@ -239,6 +240,28 @@ templates:
 No templates ship by default, so behavior is unchanged until you add a
 `templates/<compartment>.md` file. See [Per-compartment templates](#per-compartment-templates).
 
+### Organization, tasks, growth, MCP writes
+
+```yaml
+organization: folders              # or flat → brain/<slug>.md
+
+tasks:
+  render: frontmatter              # frontmatter | checkbox | both
+
+growth:
+  max_sections: 25
+  max_tokens: 6000
+  policy: off                      # off | summarize | split
+
+mcp:
+  write:
+    enabled: false                 # opt-in capture_note tool
+    require_review: true           # force inbox when writing via MCP
+```
+
+Convert an existing vault between layouts with `dendrite migrate --to-flat` or
+`--to-folders` (always try `--dry-run` first).
+
 ---
 
 ## Brain compartments
@@ -361,19 +384,107 @@ curl http://localhost:8787/health
 
 ---
 
+## Bookmarklet
+
+Capture a browser selection (or page title when nothing is selected) to your
+Dendrite webhook. No extension install required.
+
+**Prerequisites:** `dendrite serve` running with `inputs.webhook.enabled: true`,
+and `DENDRITE_WEBHOOK_TOKEN` set in `.env`.
+
+1. Create a new browser bookmark.
+2. Set the name to something like `Capture to Dendrite`.
+3. Paste this as the URL (edit host, port, and token):
+
+```javascript
+javascript:(function(){var t=window.getSelection().toString()||document.title;var u=location.href;var h='http://localhost:8787/ingest';var k='YOUR_TOKEN';fetch(h,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+k},body:JSON.stringify({text:t,url:u,title:document.title,source:'webhook',meta:{via:'bookmarklet'}})}).then(function(r){return r.json().then(function(j){alert(r.ok?'Captured':'Error: '+(j.error||r.status));});}).catch(function(e){alert('Failed: '+e);});})();
+```
+
+4. On any page, select text and click the bookmark. With no selection, the page
+   title is sent instead.
+
+The webhook stores `url` and `title` in `dump.meta` and appends them to the
+capture text so `reads/` notes get a source link.
+
+**Remote server:** replace `localhost:8787` with your host. Use HTTPS in
+production. Tunnel with Tailscale, Cloudflare Tunnel, or similar if the vault
+daemon runs at home.
+
+---
+
+## iOS Shortcuts
+
+Send captures from iPhone or iPad to the same webhook. Works for typed notes,
+clipboard text, Safari shares, and voice (with transcription handled elsewhere).
+
+**Prerequisites:** webhook enabled, token set, server reachable from the phone
+(same Wi-Fi, VPN, or public HTTPS endpoint).
+
+### Text capture shortcut
+
+1. Open **Shortcuts** and create a new shortcut.
+2. Add **Ask for Input** (text). Prompt: `Capture to Dendrite`.
+3. Add **Get Contents of URL**:
+   - URL: `http://YOUR_HOST:8787/ingest` (or your HTTPS URL)
+   - Method: `POST`
+   - Headers:
+     - `Content-Type`: `application/json`
+     - `Authorization`: `Bearer YOUR_TOKEN`
+   - Request Body: JSON
+   - JSON body:
+
+```json
+{
+  "text": "Shortcut Input",
+  "source": "shortcuts",
+  "meta": { "via": "ios-shortcuts" }
+}
+```
+
+   Map `Shortcut Input` to the output of **Ask for Input**.
+
+4. Add **Show Notification** on success or failure (optional).
+5. Add the shortcut to the Home Screen or Share Sheet.
+
+### Safari page capture
+
+Duplicate the shortcut above, but replace the JSON body with:
+
+```json
+{
+  "text": "Shortcut Input",
+  "url": "Provided Input",
+  "title": "Provided Input",
+  "source": "shortcuts",
+  "meta": { "via": "ios-shortcuts", "from": "safari" }
+}
+```
+
+Use a **Share Sheet** trigger. Pass the page URL as `Provided Input`. Set `text`
+to the page title or a user prompt. Dendrite receives `url` and `title` like the
+bookmarklet.
+
+### Voice note (without Telegram)
+
+Record audio in Shortcuts, upload to a transcription endpoint (OpenAI Whisper,
+local whisper.cpp, etc.), then POST the transcript to `/ingest` in a second step.
+Telegram voice capture is simpler if you already run the bot.
+
+---
+
 ## CLI reference
 
 | Command | Description |
 |---------|-------------|
 | `dendrite init` | Interactive setup wizard |
-| `dendrite doctor [--stats] [--json]` | Health check + metrics (embedding coverage, queue health, dangling links) |
+| `dendrite doctor [--stats] [--json]` | Health check + metrics (coverage, queue, dangling links, segments/dump, cost estimate) |
 | `dendrite ingest "text"` | Classify and write one capture |
 | `dendrite ingest --dry-run "text"` | Preview without writing |
 | `dendrite ingest --file audio.ogg` | Transcribe + ingest audio |
 | `dendrite ask "question"` | RAG answer from your vault, with citations |
 | `dendrite eval` | Classification accuracy on a golden dataset |
-| `dendrite serve` | Run daemon |
-| `dendrite mcp` | MCP read-server (stdio) |
+| `dendrite serve` | Run daemon (Telegram, webhook, dashboard) |
+| `dendrite mcp` | MCP server (stdio; read-only unless `mcp.write.enabled`) |
 | `dendrite reindex` | Rebuild search index from vault |
 | `dendrite inbox` | List inbox notes |
 | `dendrite sort [--dry-run]` | LLM-sort inbox + unfiled imports |
@@ -381,6 +492,9 @@ curl http://localhost:8787/health
 | `dendrite sort --imports-only` | Only vault-root / scratch imports |
 | `dendrite repair [--dry-run]` | Split junk-drawer notes |
 | `dendrite migrate [--dry-run]` | Upgrade frontmatter schema |
+| `dendrite migrate --to-flat` | Move notes to `brain/<slug>.md` layout |
+| `dendrite migrate --to-folders` | Move flat notes back into compartment folders |
+| `dendrite merge a.md b.md` | Merge two notes; rewrite wikilinks; archive absorbed |
 | `dendrite embed [--force]` | Build embedding vectors |
 | `dendrite remove --last` | Undo most recent capture |
 | `dendrite remove --id <dumpId>` | Undo specific capture |
@@ -575,9 +689,11 @@ Register in Cursor / Claude Code / Hermes:
 | `list_compartments` | Compartment list + counts |
 | `recent_notes` | Recently updated |
 | `get_backlinks` | What links to a note |
-| `get_capture_siblings` | Reconstruct split capture |
+| `get_capture_siblings` | Reconstruct split capture (+ original transcript) |
+| `capture_note` | Opt-in write (`mcp.write.enabled`); same pipeline as webhook |
 
-**Read-only.** To add knowledge, use CLI/Telegram/webhook — not MCP.
+Writes stay off by default. Set `mcp.write.enabled: true` only for sandboxed agents;
+`require_review: true` files captures into `inbox/` first.
 
 See [AGENTS.md](AGENTS.md) for agent contribution rules.
 
