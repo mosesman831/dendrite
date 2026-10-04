@@ -1,6 +1,7 @@
 import { habitStatus, renderHabits } from "../events/habits.js";
 import { lastTime, renderLastTime } from "../events/last.js";
 import { entityProfile } from "../events/recall.js";
+import { buildNow, renderNow } from "../events/now.js";
 import type { DendriteConfig, EmbeddingsConfig } from "../config.js";
 import type { EventStore } from "../events/store.js";
 import { ingestEvents, ingestOptionsFromConfig } from "../events/ingest.js";
@@ -34,6 +35,7 @@ export const LIFE_COMMANDS = [
   { command: "drop", description: "Drop a loop: /drop <id>" },
   { command: "recall", description: "Search your life log: /recall <query>" },
   { command: "last", description: "When did I last…? /last <thing>" },
+  { command: "now", description: "Where you are, what's due, what's broken" },
   { command: "who", description: "Person/place profile + open loops: /who <name>" },
   { command: "habits", description: "Habit streaks and what's overdue" },
   { command: "log", description: "Record an event verbatim: /log <text>" },
@@ -109,6 +111,8 @@ export async function lifeCommand(d: LifeDeps, cmd: string, arg: string): Promis
     case "last":
       if (!a) return "Usage: /last <thing> — e.g. /last haircut";
       return clip(renderLastTime(lastTime(store, a, { now: nowIso, timezone: tz }), tz));
+    case "now":
+      return clip(renderNow(buildNow(store, { now: nowIso, timezone: tz, places: config.places, habits: config.habits, maxPrivacy: "normal" }), tz));
     case "who": {
       if (!a) return "Usage: /who <name>";
       const p = entityProfile(store, a, { maxPrivacy: "normal", recent: 5, aliases: config.aliases });
