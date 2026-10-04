@@ -5,6 +5,7 @@ import type { DendriteIndex } from "../pipeline/index.js";
 import { ingestEvents, ingestOptionsFromConfig, parseNdjson } from "../events/ingest.js";
 import type { EventQuery, PrivacyLevel } from "../events/types.js";
 import { normalizeTime, localDate } from "../events/time.js";
+import { recall, entityProfile } from "../events/recall.js";
 import { authorize, resolveApiKeys, type Scope } from "./http-security.js";
 import { renderDigestMarkdown, summarizeDay, summarizeWeek } from "../events/timeline.js";
 
@@ -161,6 +162,41 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
     const s = summary(req, res);
     if (!s) return;
     res.type("text/markdown").send(renderDigestMarkdown(s));
+  });
+
+  app.get("/v1/recall", (req, res) => {
+    if (!guard(req, res)) return;
+    const qs = req.query as Record<string, unknown>;
+    const s = (k: string) => (typeof qs[k] === "string" && qs[k] ? (qs[k] as string) : undefined);
+    const n = (k: string) => (s(k) !== undefined ? Number(s(k)) : undefined);
+    try {
+      const pack = recall(store, {
+        q: s("q"),
+        entity: s("entity"),
+        at: s("at"),
+        windowMin: n("window"),
+        from: s("from"),
+        to: s("to"),
+        stream: s("stream")?.split(","),
+        limit: n("limit"),
+        contextMin: n("context"),
+        timezone: config.vault.timezone,
+      });
+      if (s("format") === "markdown") res.type("text/markdown").send(pack.markdown);
+      else res.json(pack);
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+    }
+  });
+
+  app.get("/v1/entities/:name", (req, res) => {
+    if (!guard(req, res)) return;
+    const p = entityProfile(store, req.params.name);
+    if (!p.count) {
+      res.status(404).json({ error: "unknown entity" });
+      return;
+    }
+    res.json(p);
   });
 
   app.get("/v1/entities", (req, res) => {

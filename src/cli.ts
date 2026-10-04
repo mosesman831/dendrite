@@ -19,6 +19,7 @@ import { startMcpServer } from "./mcp/server.js";
 import { runRecord } from "./commands/record.js";
 import { runTimeline, runDigest } from "./commands/timeline.js";
 import { runImport } from "./commands/import.js";
+import { runRecall, runWho } from "./commands/recall.js";
 import { runPrune, runExport, runBackup } from "./commands/ops.js";
 
 const program = new Command();
@@ -79,6 +80,28 @@ program
   .option("--limit <n>", "git: max commits")
   .option("--json", "Machine-readable output")
   .action(runImport);
+
+program
+  .command("recall [query]")
+  .description("Agent-ready context pack: matching events (+ surrounding moments), or everything --at a time")
+  .option("-c, --config <path>", "Config file path")
+  .option("-e, --entity <name>", "Filter by person/place/thing")
+  .option("--at <time>", "Center time: show what happened around it")
+  .option("-w, --window <min>", "--at window in minutes (default 60)")
+  .option("--from <time>", "Start")
+  .option("--to <time>", "End")
+  .option("-s, --stream <names>", "Comma-separated streams")
+  .option("-n, --limit <n>", "Max hits (default 20)")
+  .option("--context <min>", "Neighbour window per hit in minutes (default 30, 0 = off)")
+  .option("--json", "Machine-readable output")
+  .action(runRecall);
+
+program
+  .command("who <entity>")
+  .description("Profile a person/place/thing: activity span, streams, co-mentions, recent events")
+  .option("-c, --config <path>", "Config file path")
+  .option("--json", "Machine-readable output")
+  .action(runWho);
 
 program
   .command("export")

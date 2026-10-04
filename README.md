@@ -395,6 +395,18 @@ dendrite import export.ndjson            # raw events
 
 Drop folder: set `inputs.drop_folder.enabled: true` and `dendrite serve` will import any file dropped into `inputs.drop_folder.path` (json/ndjson/ics/gpx/csv) every `poll_seconds`. Imported files move to `processed/`; files that fail move to `failed/` with an `.error.txt` next to them.
 
+### Recall (second-brain queries)
+
+```bash
+dendrite recall "grant"                     # matching moments, each with ±30 min of surrounding events
+dendrite recall --entity Ada --from 2026-09-01
+dendrite recall --at "2026-10-01 10:00" -w 30   # everything that happened around then
+dendrite who Ada                            # first/last seen, streams, co-mentioned entities, recent events
+```
+
+HTTP: `GET /v1/recall?q=&entity=&at=&window=&context=&format=markdown`, `GET /v1/entities/:name`.
+MCP: `recall` (markdown context pack, ready to drop into an agent prompt) and `entity_profile`. Sensitive events are only exposed over MCP when `mcp.include_sensitive: true`.
+
 ### Operations
 
 ```bash
