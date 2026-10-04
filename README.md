@@ -425,6 +425,15 @@ MCP: `recall` (markdown context pack, ready to drop into an agent prompt) and `e
 
 **Semantic recall.** When `index.embeddings.enabled` is set, event text is embedded incrementally: run `dendrite embed-events`, or let `serve` do it on `index.embeddings.events_cron`, every 10 minutes by default. `recall`, `/v1/recall` and the MCP `recall` tool then blend vector matches with full-text hits, weighted by `hybrid_weight`, so "dog" finds "took the puppy to the vet". Only normal-privacy events are sent to the embeddings provider unless `events_include_sensitive: true`. Secret events are never sent. If the provider fails, recall falls back to full-text search instead of erroring. Turn hybrid matching off for one query with `--no-semantic` or `semantic=0`.
 
+### Open loops
+
+Commitments and todos in your events are tracked automatically. Dendrite picks up phrases like "I'll…", "need to…", "remind me to…", "follow up with…", "TODO: …" and `- [ ]` checkboxes. Relative due dates are resolved against the event's date: "tomorrow", "by friday", "in 3 days", "next week", or an ISO date.
+- When a later event says you did it ("done with the car insurance renewal"), the matching loop closes automatically, as long as there is enough word overlap. Turn this off with `loops.auto_resolve: false`.
+- `dendrite loops` lists active loops, soonest due first, with overdue ones flagged. `dendrite loop <id> done|dropped|open` or `dendrite loop <id> snoozed 2026-10-10` changes one.
+- HTTP: `GET /v1/loops?status=active|all|…&format=markdown` and `PATCH /v1/loops/:id {status, snooze_until}` (needs write scope).
+- MCP: the `open_loops` tool, plus `update_loop` when `mcp.allow_writes` is on.
+- Secret events are never tracked. Loops inherit the privacy level of the event they came from. Streams in `loops.exclude_streams` are skipped (by default: browser, location, movement, health, fitness, git).
+
 ### Triggers
 
 React to life events as they land: POST a signed webhook, or record a derived event, or both.

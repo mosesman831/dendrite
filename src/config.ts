@@ -158,6 +158,13 @@ export const ConfigSchema = z.object({
       prune_cron: z.string().default("30 3 * * *"),
     })
     .default({}),
+  loops: z
+    .object({
+      enabled: z.boolean().default(true),
+      exclude_streams: z.array(z.string()).default(["browser", "location", "movement", "health", "fitness", "git"]),
+      auto_resolve: z.boolean().default(true),
+    })
+    .default({}),
   triggers: z
     .array(
       z.object({

@@ -2,7 +2,8 @@ import { loadConfig } from "../config.js";
 import { DendriteIndex } from "../pipeline/index.js";
 import { entityProfile } from "../events/recall.js";
 import { embedPendingEvents, eventEmbeddingsConfig, providerEmbedFn, recallHybrid } from "../events/semantic.js";
-import { localDate } from "../events/time.js";
+import { localDate, normalizeTime } from "../events/time.js";
+import { listLoops, renderLoops, setLoopStatus, LOOP_STATUSES, type LoopStatus } from "../events/loops.js";
 import { eventSummary } from "../events/timeline.js";
 
 export async function runRecall(
@@ -85,6 +86,33 @@ export async function runEmbedEvents(opts: { config?: string; max?: string; json
       log: (m) => console.error(m),
     });
     console.log(opts.json ? JSON.stringify(r) : `Embedded ${r.embedded} event(s) with ${emb.model}; ${r.failed} failed, ${r.remaining} remaining, ${r.orphans} orphan vector(s) removed.`);
+  } finally {
+    index.close();
+  }
+}
+
+export async function runLoops(opts: { config?: string; status?: string; limit?: string; json?: boolean }): Promise<void> {
+  const { config } = loadConfig(opts.config);
+  const index = new DendriteIndex(config.index.db_path);
+  try {
+    const loops = listLoops(index.events, { status: (opts.status ?? "active") as LoopStatus, limit: opts.limit ? Number(opts.limit) : undefined });
+    console.log(opts.json ? JSON.stringify(loops, null, 2) : renderLoops(loops, localDate(new Date().toISOString(), config.vault.timezone)));
+  } finally {
+    index.close();
+  }
+}
+
+export async function runLoopSet(id: string, status: string, until: string | undefined, opts: { config?: string }): Promise<void> {
+  if (!(LOOP_STATUSES as readonly string[]).includes(status)) throw new Error(`status must be one of ${LOOP_STATUSES.join(", ")}`);
+  const { config } = loadConfig(opts.config);
+  const index = new DendriteIndex(config.index.db_path);
+  try {
+    const snooze = until ? normalizeTime(until) ?? undefined : undefined;
+    const l = setLoopStatus(index.events, id, status as LoopStatus, snooze);
+    if (!l) {
+      console.error(`No loop ${id}`);
+      process.exitCode = 1;
+    } else console.log(`${l.id} → ${l.status}${l.snooze_until ? ` until ${l.snooze_until}` : ""}: ${l.text}`);
   } finally {
     index.close();
   }
