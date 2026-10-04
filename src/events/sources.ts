@@ -19,6 +19,23 @@ export interface SourceRow {
   p90_gap_hours: number | null;
   continuous: boolean;
   stale: boolean;
+  /** Last sync error for pulled subscriptions (calendars, feeds). */
+  error?: string;
+}
+
+interface SyncStatus {
+  attempt_at: string;
+  ok_at: string | null;
+  error: string | null;
+  interval_min: number;
+}
+
+/** Remember the outcome of a pull subscription, so health reflects sync success rather than whether anything new arrived. */
+export function recordSync(store: EventStore, source: string, intervalMin: number, error?: string, now = new Date().toISOString()): void {
+  const prev = store.getCheckpoint(`sync:${source}`);
+  const p = prev ? (JSON.parse(prev) as SyncStatus) : null;
+  const s: SyncStatus = { attempt_at: now, ok_at: error ? (p?.ok_at ?? null) : now, error: error ?? null, interval_min: intervalMin };
+  store.setCheckpoint(`sync:${source}`, JSON.stringify(s));
 }
 
 const H = 3_600_000;
@@ -59,6 +76,21 @@ export function sourceHealth(store: EventStore, o: SourceHealthOptions = {}): So
       stale: continuous && hours > limit,
     });
   }
+  const subs = store.db.prepare(`SELECT name, value FROM checkpoints WHERE name LIKE 'sync:%'`).all() as Array<{ name: string; value: string }>;
+  for (const c of subs) {
+    const source = c.name.slice(5);
+    const s = JSON.parse(c.value) as SyncStatus;
+    const ref = Date.parse(s.ok_at ?? s.attempt_at);
+    const hours = (now - ref) / H;
+    const limit = Math.max(o.minHours ?? 6, (s.interval_min / 60) * (o.factor ?? 3));
+    const base = out.find((r) => r.source === source);
+    const row: SourceRow = base ?? { source, events: 0, days_active: 0, last_received: s.ok_at ?? s.attempt_at, hours_since: 0, p90_gap_hours: null, continuous: true, stale: false };
+    row.continuous = true;
+    row.hours_since = round1(hours);
+    row.stale = !s.ok_at || hours > limit;
+    if (s.error) row.error = s.error;
+    if (!base) out.push(row);
+  }
   return out.sort((a, b) => Number(b.stale) - Number(a.stale) || b.events - a.events);
 }
 
@@ -68,7 +100,7 @@ export function renderSources(rows: SourceRow[]): string {
     rows
       .map(
         (r) =>
-          `${r.stale ? "⚠" : r.continuous ? "●" : "○"} ${r.source.padEnd(22)} ${String(r.events).padStart(7)} ev  ${String(r.days_active).padStart(2)}d active  last ${r.hours_since}h ago${r.p90_gap_hours != null ? `  (p90 gap ${r.p90_gap_hours}h)` : ""}${r.stale ? "  STALE" : ""}`,
+          `${r.stale ? "⚠" : r.continuous ? "●" : "○"} ${r.source.padEnd(22)} ${String(r.events).padStart(7)} ev  ${String(r.days_active).padStart(2)}d active  last ${r.hours_since}h ago${r.p90_gap_hours != null ? `  (p90 gap ${r.p90_gap_hours}h)` : ""}${r.stale ? "  STALE" : ""}${r.error ? `  (${r.error})` : ""}`,
       )
       .join("\n") + "\n"
   );

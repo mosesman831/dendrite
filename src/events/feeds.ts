@@ -1,5 +1,6 @@
 import type { EventStore } from "./store.js";
 import { ingestEvents, type IngestOptions } from "./ingest.js";
+import { recordSync } from "./sources.js";
 import type { PrivacyLevel } from "./types.js";
 
 export interface FeedSub {
@@ -94,7 +95,11 @@ export async function syncFeed(
 ): Promise<FeedSyncResult> {
   const res: FeedSyncResult = { name: f.name, ok: false, items: 0, accepted: 0, duplicates: 0 };
   const url = feedUrl(f, env);
-  if (!url) return { ...res, error: f.url_env ? `${f.url_env} not set` : "no url" };
+  if (!url) {
+    res.error = f.url_env ? `${f.url_env} not set` : "no url";
+    recordSync(store, `feed:${f.name}`, f.interval_min ?? 60, res.error, now());
+    return res;
+  }
   try {
     const at = now();
     const evs = parseFeed(await fetchText(url))
@@ -119,5 +124,6 @@ export async function syncFeed(
   } catch (e) {
     res.error = (e as Error).message.replace(/https?:\/\/\S+/g, "<url>");
   }
+  recordSync(store, `feed:${f.name}`, f.interval_min ?? 60, res.error, now());
   return res;
 }
