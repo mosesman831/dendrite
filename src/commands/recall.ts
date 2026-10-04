@@ -1,3 +1,4 @@
+import { lastTime, renderLastTime } from "../events/last.js";
 import { aliasUsage, applyAliases } from "../events/aliases.js";
 import { renderSources, sourceHealth } from "../events/sources.js";
 import { loadConfig } from "../config.js";
@@ -202,6 +203,17 @@ export async function runAliases(opts: { config?: string; apply?: boolean; json?
     const u = aliasUsage(index.events, config.aliases);
     if (opts.json) console.log(JSON.stringify(u, null, 2));
     else for (const r of u) console.log(`${r.alias.padEnd(20)} → ${r.canonical.padEnd(20)} ${r.events} unmerged event(s)`);
+  } finally {
+    index.close();
+  }
+}
+
+export async function runLast(query: string[], opts: { config?: string; json?: boolean; sensitive?: boolean }): Promise<void> {
+  const { config } = loadConfig(opts.config);
+  const index = new DendriteIndex(config.index.db_path);
+  try {
+    const r = lastTime(index.events, query.join(" "), { timezone: config.vault.timezone, maxPrivacy: opts.sensitive ? "sensitive" : "normal" });
+    console.log(opts.json ? JSON.stringify(r, null, 2) : renderLastTime(r, config.vault.timezone));
   } finally {
     index.close();
   }

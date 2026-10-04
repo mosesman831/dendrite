@@ -1,3 +1,4 @@
+import { lastTime, renderLastTime } from "../events/last.js";
 import { renderSources, sourceHealth } from "../events/sources.js";
 import { placeVisits, renderPlaces } from "../events/places.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -209,6 +210,16 @@ export async function startMcpServer(configPath?: string): Promise<void> {
       let rows = listPeople(index.events, { maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal", limit: 200 });
       if (a.drifting_only) rows = rows.filter((r) => r.drifting);
       return a.format === "json" ? json(rows) : { content: [{ type: "text" as const, text: renderPeople(rows) }] };
+    },
+  );
+
+  server.tool(
+    "last_time",
+    "Answer 'when did I last …?' from the life log: the most recent matching event, how many days ago, how often it usually happens, and whether it's overdue vs that rhythm.",
+    { query: z.string().min(1), format: z.enum(["markdown", "json"]).optional() },
+    async (a) => {
+      const r = lastTime(index.events, a.query, { timezone: config.vault.timezone, maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal" });
+      return a.format === "json" ? json(r) : { content: [{ type: "text" as const, text: renderLastTime(r, config.vault.timezone) }] };
     },
   );
 
