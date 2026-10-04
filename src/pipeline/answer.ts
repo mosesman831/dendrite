@@ -6,6 +6,48 @@ import type { DendriteIndex } from "./index.js";
 import { createChatProvider } from "../providers/llm.js";
 import { smartSearch } from "./search.js";
 import { wikilink } from "../util/slug.js";
+import { recall } from "../events/recall.js";
+import type { EventStore } from "../events/store.js";
+import { localDate, localTime } from "../events/time.js";
+import { eventSummary } from "../events/timeline.js";
+
+export interface AnswerEvent {
+  id: string;
+  at: string;
+  stream: string;
+  summary: string;
+}
+
+const QUESTION_STOP = new Set(
+  "what when where who whom which why how did does do was were is are am the a an of to in on at for with about from my me i you it that this have has had ever last any".split(" "),
+);
+
+/** Life-log events relevant to a question (normal privacy only), as citeable context blocks. */
+export function eventContext(
+  store: EventStore,
+  question: string,
+  o: { limit?: number; timezone?: string; budget?: number } = {},
+): { events: AnswerEvent[]; blocks: string[] } {
+  const q = question
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}_]+/u)
+    .filter((t) => t.length >= 2 && !QUESTION_STOP.has(t))
+    .join(" ");
+  if (!q) return { events: [], blocks: [] };
+  const tz = o.timezone ?? "UTC";
+  const pack = recall(store, { q, limit: o.limit ?? 8, contextMin: 0, maxPrivacy: "normal", timezone: tz });
+  const events: AnswerEvent[] = [];
+  const blocks: string[] = [];
+  let used = 0;
+  for (const { event: e } of pack.hits) {
+    const summary = eventSummary(e, 400);
+    if (used + summary.length > (o.budget ?? 4000)) break;
+    used += summary.length;
+    events.push({ id: e.id, at: e.occurred_at, stream: e.stream, summary });
+    blocks.push(`[event:${e.id}] ${localDate(e.occurred_at, tz)} ${localTime(e.occurred_at, tz)} (${e.stream}) ${summary}`);
+  }
+  return { events, blocks };
+}
 
 export interface AnswerSource {
   path: string;
@@ -18,6 +60,8 @@ export interface AnswerResult {
   question: string;
   answer: string;
   sources: AnswerSource[];
+  /** Life-log events placed in context (cited as [event:<id>]). */
+  events: AnswerEvent[];
   /** Number of notes whose content was placed in the LLM context window. */
   usedNotes: number;
   /** True when no note cleared the retrieval floor, so no LLM call was made. */
@@ -27,11 +71,11 @@ export interface AnswerResult {
 const REFUSAL =
   "I don't have a note about that in the vault. Capture it first with `dendrite ingest`.";
 
-const ANSWER_SYSTEM = `You are Dendrite's librarian. Answer the user's question using ONLY the notes provided as context.
+const ANSWER_SYSTEM = `You are Dendrite's librarian. Answer the user's question using ONLY the notes and life-log events provided as context.
 
 Rules:
 - Ground every claim in the provided notes. Do not use outside knowledge or guess.
-- Cite the notes you used inline with their wikilink, e.g. [[note-slug]].
+- Cite the notes you used inline with their wikilink, e.g. [[note-slug]], and life-log events with their tag, e.g. [event:01J9Z3K4ABCDEF]. Mention the date for events.
 - If the notes do not contain the answer, reply exactly: "The vault does not contain an answer to that." Do not invent facts.
 - Be concise. Prefer a direct answer over a summary of the notes.`;
 
@@ -64,7 +108,7 @@ export async function answerQuestion(
   question: string,
   config: DendriteConfig,
   llm: LlmEndpoints,
-  opts?: { compartment?: string; k?: number },
+  opts?: { compartment?: string; k?: number; events?: boolean },
 ): Promise<AnswerResult> {
   const q = question.trim();
   if (!q) throw new Error("Empty question");
@@ -89,8 +133,13 @@ export async function answerQuestion(
     score: h.score,
   }));
 
-  if (hits.length === 0) {
-    return { question: q, answer: REFUSAL, sources: [], usedNotes: 0, refused: true };
+  const ev =
+    opts?.events !== false && config.events?.enabled !== false
+      ? eventContext(index.events, q, { timezone: config.vault.timezone, budget: Math.floor(config.retrieval.max_context_chars / 3) })
+      : { events: [], blocks: [] };
+
+  if (hits.length === 0 && ev.events.length === 0) {
+    return { question: q, answer: REFUSAL, sources: [], events: [], usedNotes: 0, refused: true };
   }
 
   // Build a bounded context window from note bodies.
@@ -111,7 +160,9 @@ export async function answerQuestion(
   }
 
   const context = blocks.join("\n\n---\n\n");
-  const userContent = `Question: ${q}\n\nNotes:\n${context}`;
+  const userContent =
+    `Question: ${q}\n\nNotes:\n${context || "(none)"}` +
+    (ev.blocks.length ? `\n\nLife-log events:\n${ev.blocks.join("\n")}` : "");
 
   const chat = createChatProvider(llm);
   const answer = (
@@ -124,5 +175,5 @@ export async function answerQuestion(
     })
   ).trim();
 
-  return { question: q, answer, sources, usedNotes, refused: false };
+  return { question: q, answer, sources, events: ev.events, usedNotes, refused: false };
 }

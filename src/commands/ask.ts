@@ -32,7 +32,13 @@ export async function runAsk(
       for (const s of result.sources) {
         console.log(`  - [[${s.slug}]] — ${s.title}  (${s.path}, score ${s.score.toFixed(3)})`);
       }
-      console.log(`\n(${result.usedNotes} note${result.usedNotes === 1 ? "" : "s"} used as context)`);
+    }
+    if (result.events.length > 0) {
+      console.log("Events:");
+      for (const e of result.events) console.log(`  - [event:${e.id}] ${e.at.slice(0, 16)} (${e.stream}) ${e.summary.slice(0, 100)}`);
+    }
+    if (result.sources.length + result.events.length > 0) {
+      console.log(`\n(${result.usedNotes} note${result.usedNotes === 1 ? "" : "s"}, ${result.events.length} event${result.events.length === 1 ? "" : "s"} used as context)`);
     }
   } finally {
     index.close();

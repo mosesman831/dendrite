@@ -301,7 +301,7 @@ program
 
 program
   .command("ask [question]")
-  .description("Answer a question using only your vault notes (read-only RAG)")
+  .description("Answer a question from your vault notes and life log (read-only RAG)")
   .option("-c, --config <path>", "Config file path")
   .option("--compartment <name>", "Restrict retrieval to one compartment")
   .option("-k, --k <n>", "Number of notes to retrieve")

@@ -196,7 +196,7 @@ flowchart LR
 | `dendrite migrate` | Upgrade note frontmatter to current `dendrite_version`. |
 | `dendrite embed` | Build embedding vectors for hybrid semantic search. |
 | `dendrite backfill` | Classify vault-root / scratch notes into brain folders. |
-| `dendrite ask` | RAG question-answering over the vault, with `[[wikilink]]` citations. |
+| `dendrite ask` | RAG question-answering over the vault and the life log (normal-privacy events), with `[[wikilink]]` and `[event:id]` citations. |
 | `dendrite eval` | Run a golden labeled dataset through the classifier to measure routing accuracy. |
 
 ### Agent interface (MCP)
@@ -220,7 +220,7 @@ dendrite init              # interactive setup wizard
 dendrite doctor [--stats]  # health check + local metrics
 dendrite ingest "text"     # classify + write
 dendrite ingest --dry-run  # preview without writing
-dendrite ask "question"    # RAG answer from your vault, with citations
+dendrite ask "question"    # RAG answer from your vault + life log, with citations
 dendrite eval              # classification accuracy on a golden dataset
 dendrite serve             # daemon: telegram + webhook + crons
 dendrite mcp               # MCP read-server (stdio)

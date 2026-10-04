@@ -56,7 +56,7 @@ export async function startMcpServer(configPath?: string): Promise<void> {
 
   server.tool(
     "answer_question",
-    "Answer a natural-language question using ONLY vault notes, with [[wikilink]] citations. Read-only RAG; refuses when nothing relevant is found.",
+    "Answer a natural-language question using ONLY vault notes and normal-privacy life-log events, with [[wikilink]] / [event:id] citations. Read-only RAG; refuses when nothing relevant is found.",
     { question: z.string(), compartment: z.string().optional(), k: z.number().optional() },
     async ({ question, compartment, k }) => {
       const result = await answerQuestion(index, config.vault.path, question, config, llm, { compartment, k });
