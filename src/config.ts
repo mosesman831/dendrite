@@ -43,7 +43,7 @@ export const ConfigSchema = z.object({
         enabled: z.boolean().default(false),
         tokenEnv: z.string().default("TELEGRAM_BOT_TOKEN"),
         allowed_user_ids: z.array(z.number()).default([]),
-        /** Mirror every text capture into the event log (stream "note", source "telegram"). */
+        /** Mirror Telegram captures (text + voice transcripts) into the event log; see events.mirror_captures. */
         log_events: z.boolean().default(true),
       })
       .default({}),
@@ -132,6 +132,8 @@ export const ConfigSchema = z.object({
       enabled: z.boolean().default(true),
       max_batch: z.number().int().positive().default(1000),
       default_source: z.string().default("api"),
+      /** Record every pipeline capture (Telegram, voice transcripts, /ingest webhook) in the event log before LLM processing. */
+      mirror_captures: z.boolean().default(true),
       stream_weights: z.record(z.number().min(0).max(1)).default({}),
     })
     .default({}),

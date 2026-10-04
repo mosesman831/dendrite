@@ -16,6 +16,7 @@ import { crosslink } from "./crosslink.js";
 import { writeNote, addBacklink } from "./write.js";
 import { writeVaultCatalog } from "./catalog.js";
 import { parseWikilink, wikilink } from "../util/slug.js";
+import { ingestEvents, ingestOptionsFromConfig } from "../events/ingest.js";
 
 export interface PipelineContext {
   config: DendriteConfig;
@@ -78,6 +79,7 @@ export async function processDump(
   }
 
   const transcript = dump.text.trim();
+  if (!ctx.dryRun) mirrorCapture(ctx, dump, transcript);
   const chat = createChatProvider(ctx.llm);
   const corrections = index.getRecentCorrections(5);
   const preSearch = index.search(dump.text.slice(0, 300), undefined, 8, { excludeEphemeral: true });
@@ -330,4 +332,29 @@ export function aggregateTier(results: PipelineResult[]): "silent" | "confirm" |
   if (results.some((r) => r.tier === "inbox")) return "inbox";
   if (results.some((r) => r.tier === "confirm")) return "confirm";
   return "silent";
+}
+
+/** Raw capture → event log, before any LLM call, so a provider outage never loses it. Idempotent per dump id. */
+function mirrorCapture(ctx: PipelineContext, dump: Dump, text: string): void {
+  const { config } = ctx;
+  if (config.events?.enabled === false || config.events?.mirror_captures === false) return;
+  if (dump.source.startsWith("telegram") && config.inputs?.telegram?.log_events === false) return;
+  try {
+    ingestEvents(
+      ctx.index.events,
+      [
+        {
+          stream: "note",
+          kind: dump.source.endsWith("voice") || dump.audioPath ? "voice" : "capture",
+          source: dump.source,
+          external_id: `dump:${dump.id}`,
+          occurred_at: dump.receivedAt,
+          text,
+        },
+      ],
+      ingestOptionsFromConfig(config),
+    );
+  } catch (err) {
+    console.error("event-log mirror failed:", err instanceof Error ? err.message : String(err));
+  }
 }

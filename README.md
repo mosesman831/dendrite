@@ -450,7 +450,7 @@ Only normal-privacy events are counted unless you ask for sensitive ones. Secret
 
 ### Telegram life commands
 
-Every text you send the bot is also written to the event log (stream `note`, source `telegram`). That makes it searchable, and commitments in it become open loops. Re-delivered messages aren't logged twice. Turn this off with `inputs.telegram.log_events: false`.
+Every capture is written to the event log (stream `note`, kind `capture` or `voice`) before any LLM call. That covers Telegram text, voice-note transcripts and `POST /ingest`. It makes captures searchable, turns their commitments into open loops, and means nothing is lost if the provider is down. Retries are not logged twice. Turn this off with `events.mirror_captures: false`, or for Telegram only with `inputs.telegram.log_events: false`.
 
 | Command | What it does |
 | --- | --- |
