@@ -457,6 +457,10 @@ places:
 
 Any event with coordinates inside a place's radius gets the place as an entity and an `at:<slug>` tag. That covers receiver fixes, GPX and Takeout imports. The default radius is 150 m, and the nearest place wins. If the place sets `privacy`, the event's privacy is raised to at least that level. Places then show up in `recall`, `people`, insights, `/where` ("at Home · …") and the timeline. `dendrite places` lists visit counts. Use `dendrite places --backfill` to tag events stored before you added a place.
 
+### Live stays
+
+While `serve` runs, it turns streamed location points into `location/stay` events every `stays.interval_min` minutes (default 15). Stays are named after a configured place when one matches, e.g. "At Home for ~40 min". A stay is only written once you've left it, so the event never changes after it's created. A stay is at least as private as the points it was built from. Configure it under `stays: { live, interval_min, lookback_hours, radius_m, min_minutes }`.
+
 ### Insights
 
 `dendrite insights [--days 7] [--to DATE] [--sensitive]` compares a window with the period of the same length just before it:

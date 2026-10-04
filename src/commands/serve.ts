@@ -15,6 +15,7 @@ import { embedPendingEvents, eventEmbeddingsConfig, providerEmbedFn } from "../e
 import { ingestOptionsFromConfig } from "../events/ingest.js";
 import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
 import { computeInsights, renderInsights } from "../events/insights.js";
+import { deriveLiveStays } from "../events/stays.js";
 import { startTelegramBot, runQueueWorker } from "../inputs/telegram.js";
 import {
   scheduleDailyPrompt,
@@ -191,6 +192,23 @@ export async function runServe(opts: { config?: string }): Promise<void> {
       ),
     );
     console.log(`  Weekly review: ${config.insights.cron}`);
+  }
+  if (config.events.enabled && config.stays?.live) {
+    const s = config.stays;
+    const tick = () => {
+      try {
+        const r = deriveLiveStays(
+          ctx.index.events,
+          { from: new Date(Date.now() - s.lookback_hours * 3_600_000).toISOString(), places: config.places, radiusM: s.radius_m, minMinutes: s.min_minutes },
+          ingestOptionsFromConfig(config),
+        );
+        if (r.created) console.log(`[stays] +${r.created}`);
+      } catch (e) {
+        console.error(`[stays] ${(e as Error).message}`);
+      }
+    };
+    setInterval(tick, s.interval_min * 60_000).unref();
+    console.log(`  Live stays: every ${s.interval_min} min`);
   }
 
   console.log("Dendrite serve started");
