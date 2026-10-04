@@ -66,3 +66,9 @@ test("/who shows profile with open loops", async () => {
   assert.match(await run("who", "nobody-here"), /Nothing mentions/);
   assert.match(await run("who"), /Usage/);
 });
+
+test("/now renders the situational snapshot", async () => {
+  const r = await run("now");
+  assert.match(r, /^# Now — 2026-10-04 08:00 UTC/);
+  assert.match(r, /\*\*Recent:\*\*/);
+});
