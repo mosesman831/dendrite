@@ -3,6 +3,8 @@ import type { Dump } from "../types.js";
 import type { PipelineContext } from "../pipeline/pipeline.js";
 import { enqueueAndProcess } from "../pipeline/pipeline.js";
 import { hashId } from "../util/slug.js";
+import { ingestEvents, ingestOptionsFromConfig } from "../events/ingest.js";
+import { mountEventsApi } from "./events-api.js";
 import type { DendriteConfig } from "../config.js";
 
 /** Create the canonical Express app for Dendrite's HTTP surface. */
@@ -53,6 +55,14 @@ export function mountWebhookRoute(
       meta,
     };
 
+    if (config.events.enabled) {
+      ingestEvents(
+        ctx.index.events,
+        [{ stream: "note", kind: "capture", source: "webhook", external_id: dump.id, text, data: meta }],
+        ingestOptionsFromConfig(config),
+      );
+    }
+
     try {
       const results = await enqueueAndProcess(ctx, dump);
       res.json({ ok: true, results });
@@ -70,6 +80,7 @@ export function createWebhookServer(
 ): Express {
   const app = createExpressApp(config, ctx);
   mountWebhookRoute(app, config, ctx);
+  mountEventsApi(app, config, ctx.index);
   app.get("/health", (_req, res) => res.json({ ok: true }));
   return app;
 }
