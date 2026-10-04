@@ -86,6 +86,8 @@ export interface EventRecord {
 export interface IngestReport {
   accepted: number;
   duplicates: number;
+  /** Existing events rewritten in place (only with `IngestOptions.upsert`). */
+  updated?: number;
   rejected: Array<{ index: number; error: string }>;
   ids: string[];
 }

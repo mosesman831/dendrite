@@ -207,7 +207,44 @@ export class EventStore {
     migrate(db);
   }
 
-  insert(e: Omit<EventRecord, "distilled_at" | "note_path">): "inserted" | "duplicate" {
+  /**
+   * With `upsert`, an event whose (source, external_id) already exists but whose content changed
+   * (e.g. a rescheduled calendar entry) is rewritten in place, keeping its id, and marked for
+   * re-distillation.
+   */
+  insert(
+    e: Omit<EventRecord, "distilled_at" | "note_path">,
+    upsert = false,
+  ): "inserted" | "duplicate" | "updated" {
+    if (upsert && e.external_id) {
+      const prev = this.db
+        .prepare(`SELECT id, content_hash FROM events WHERE source = ? AND external_id = ?`)
+        .get(e.source, e.external_id) as { id: string; content_hash: string } | undefined;
+      if (prev) {
+        if (prev.content_hash === e.content_hash) return "duplicate";
+        this.db.transaction(() => {
+          this.db
+            .prepare(
+              `UPDATE events SET stream=@stream, kind=@kind, occurred_at=@occurred_at, ended_at=@ended_at,
+                 content_hash=@content_hash, text=@text, data=@data, entities=@entities, tags=@tags,
+                 lat=@lat, lon=@lon, importance=@importance, privacy=@privacy,
+                 distilled_at=NULL, note_path=NULL WHERE id=@id`,
+            )
+            .run({
+              ...e,
+              id: prev.id,
+              data: e.data === undefined || e.data === null ? null : JSON.stringify(e.data),
+              entities: JSON.stringify(e.entities),
+              tags: JSON.stringify(e.tags),
+            });
+          this.db.prepare(`DELETE FROM event_entities WHERE event_id = ?`).run(prev.id);
+          const ins = this.db.prepare(`INSERT OR IGNORE INTO event_entities(event_id, entity, occurred_at) VALUES (?, ?, ?)`);
+          for (const ent of e.entities) ins.run(prev.id, ent, e.occurred_at);
+          this.db.prepare(`DELETE FROM event_embeddings WHERE event_id = ?`).run(prev.id);
+        })();
+        return "updated";
+      }
+    }
     const existing = this.db
       .prepare(
         `SELECT id FROM events WHERE content_hash = ?

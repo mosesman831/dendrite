@@ -14,7 +14,7 @@ export async function runCalendarSync(opts: { config?: string; json?: boolean })
     const out = [];
     for (const c of config.calendars) out.push(await syncCalendar(index.events, c, ingestOptionsFromConfig(config)));
     if (opts.json) console.log(JSON.stringify(out, null, 2));
-    else for (const r of out) console.log(r.ok ? `${r.name}: ${r.events} events, +${r.accepted} new` : `${r.name}: FAILED — ${r.error}`);
+    else for (const r of out) console.log(r.ok ? `${r.name}: ${r.events} events, +${r.accepted} new, ${r.updated} updated` : `${r.name}: FAILED — ${r.error}`);
     if (out.some((r) => !r.ok)) process.exitCode = 1;
   } finally {
     index.close();

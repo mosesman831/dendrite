@@ -453,7 +453,7 @@ calendars:
   - { name: work, url_env: CAL_WORK_ICS, interval_min: 30, privacy: sensitive }
 ```
 
-`serve` syncs each calendar at startup and then every `interval_min`; `dendrite calendar-sync` runs it once. The URL is read from the env var and never logged. Events are deduplicated by VEVENT UID (namespaced by calendar name). Edits to an event that was already imported are not re-applied.
+`serve` syncs each calendar at startup and then every `interval_min`; `dendrite calendar-sync` runs it once. The URL is read from the env var and never logged. Events are deduplicated by VEVENT UID (namespaced by calendar name). When a calendar event is edited (rescheduled, renamed or moved), the stored event is updated in place, keeping its id, and is re-distilled.
 
 Each receiver replies in the format its app expects. Retries and overlapping batches are de-duplicated by external id. Location fixes then feed `/where`, stays and the timeline.
 
