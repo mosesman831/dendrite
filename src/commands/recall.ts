@@ -8,6 +8,7 @@ import { eventSummary } from "../events/timeline.js";
 import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
 import { computeInsights, renderInsights } from "../events/insights.js";
 import { listPeople, renderPeople } from "../events/people.js";
+import { backfillPlaces, placeVisits } from "../events/places.js";
 
 export async function runRecall(
   query: string | undefined,
@@ -154,6 +155,23 @@ export async function runPeople(opts: { config?: string; drifting?: boolean; jso
     let rows = listPeople(index.events, { maxPrivacy: opts.sensitive ? "sensitive" : "normal", limit: 200 });
     if (opts.drifting) rows = rows.filter((r) => r.drifting);
     console.log(opts.json ? JSON.stringify(rows, null, 2) : renderPeople(rows));
+  } finally {
+    index.close();
+  }
+}
+
+export async function runPlaces(opts: { config?: string; backfill?: boolean; json?: boolean }): Promise<void> {
+  const { config } = loadConfig(opts.config);
+  const index = new DendriteIndex(config.index.db_path);
+  try {
+    if (!config.places.length) {
+      console.log("No places configured. Add e.g.\nplaces:\n  - { name: Home, lat: 51.5, lon: -0.12, radius_m: 120, privacy: sensitive }");
+      return;
+    }
+    if (opts.backfill) console.log(`Tagged ${backfillPlaces(index.events, config.places)} existing event(s).`);
+    const v = placeVisits(index.events, config.places);
+    if (opts.json) console.log(JSON.stringify(v, null, 2));
+    else for (const p of v) console.log(`${p.name.padEnd(24)} ${String(p.events).padStart(7)} events   last ${p.last_seen?.slice(0, 16).replace("T", " ") ?? "never"}`);
   } finally {
     index.close();
   }

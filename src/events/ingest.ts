@@ -1,3 +1,4 @@
+import { matchPlace, placeTag, type Place } from "./places.js";
 import { trackLoops, type LoopOptions } from "./loops.js";
 import { EventInputSchema, MAX_DATA_BYTES, MAX_TEXT_BYTES, type EventInput, type EventRecord, type IngestReport, type PrivacyLevel } from "./types.js";
 import { normalizeTime } from "./time.js";
@@ -25,6 +26,7 @@ export interface IngestOptions {
   now?: () => Date;
   /** When set, commitments/todos in new events are tracked as open loops. */
   loops?: LoopOptions;
+  places?: Place[];
 }
 
 export function ingestOptionsFromConfig(config: DendriteConfig): IngestOptions {
@@ -38,6 +40,7 @@ export function ingestOptionsFromConfig(config: DendriteConfig): IngestOptions {
     loops: config.loops?.enabled
       ? { exclude: config.loops.exclude_streams, autoResolve: config.loops.auto_resolve, timezone: config.vault?.timezone }
       : undefined,
+    places: config.places ?? [],
   };
 }
 
@@ -92,11 +95,12 @@ export function prepareEvent(raw: unknown, opts: IngestOptions = DEFAULT_INGEST_
     if (data !== undefined) data = redactValue(data, opts.rules).value;
   }
   const auto = text ? extractEntities(text) : { entities: [], tags: [] };
-  const entities = uniq([...(e.entities ?? []), ...auto.entities]).slice(0, 100);
-  const tags = uniq([...(e.tags ?? []), ...auto.tags].map((t) => t.replace(/^#/, "").toLowerCase())).slice(0, 100);
+  const place = matchPlace(e.lat, e.lon, opts.places);
+  const entities = uniq([...(e.entities ?? []), ...(place ? [place.name] : []), ...auto.entities]).slice(0, 100);
+  const tags = uniq([...(e.tags ?? []), ...(place ? [placeTag(place)] : []), ...auto.tags].map((t) => t.replace(/^#/, "").toLowerCase())).slice(0, 100);
   const stream = e.stream.toLowerCase();
   const streamDefault = opts.streamPrivacy[stream] ?? opts.streamPrivacy[stream.split(":")[0]] ?? "normal";
-  const privacy = maxPrivacy(e.privacy ?? "normal", streamDefault);
+  const privacy = maxPrivacy(maxPrivacy(e.privacy ?? "normal", streamDefault), place?.privacy ?? "normal");
   const kind = e.kind.toLowerCase();
   return {
     id: eventId(Date.parse(occurred)),
