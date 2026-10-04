@@ -5,7 +5,8 @@ import { listLoops, renderLoops, setLoopStatus, type LoopStatus } from "../event
 import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
 import { computeInsights, renderInsights } from "../events/insights.js";
 import { listPeople, renderPeople } from "../events/people.js";
-import { matchPlace } from "../events/places.js";
+import { matchPlace, placeVisits, renderPlaces } from "../events/places.js";
+import { renderSources, sourceHealth } from "../events/sources.js";
 import { recallHybrid } from "../events/semantic.js";
 import { summarizeDay, renderTimelineText, eventSummary } from "../events/timeline.js";
 import { localDate, localTime, normalizeTime } from "../events/time.js";
@@ -22,6 +23,8 @@ export const LIFE_COMMANDS = [
   { command: "today", description: "Timeline for today (or /today YYYY-MM-DD)" },
   { command: "insights", description: "Patterns vs the previous period: /insights [days]" },
   { command: "people", description: "Who's active, and who you've drifted from" },
+  { command: "places", description: "Named places and when you were last there" },
+  { command: "sources", description: "Which data feeds are alive or stale" },
   { command: "loops", description: "Open loops (things you said you'd do)" },
   { command: "done", description: "Close a loop: /done <id>" },
   { command: "snooze", description: "Snooze a loop: /snooze <id> [until]" },
@@ -69,6 +72,10 @@ export async function lifeCommand(d: LifeDeps, cmd: string, arg: string): Promis
       if (!Number.isInteger(days) || days < 1 || days > 366) return "Usage: /insights [days 1–366]";
       return clip(renderInsights(computeInsights(store, { to: today, days, timezone: tz, maxPrivacy: config.insights?.include_sensitive ? "sensitive" : "normal" })));
     }
+    case "places":
+      return clip(renderPlaces(placeVisits(store, config.places ?? [])));
+    case "sources":
+      return clip(renderSources(sourceHealth(store, { now: nowIso })));
     case "people":
       return clip(renderPeople(listPeople(store, { now: nowIso, limit: 100 })));
     case "loops": {

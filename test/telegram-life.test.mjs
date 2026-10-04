@@ -48,3 +48,10 @@ test("/log, /today, /recall, /where, /brief", async () => {
   assert.match(await run("insights", "30"), /\(30 days\)/);
   assert.match(await run("insights", "abc"), /Usage/);
 });
+
+test("/places and /sources", async () => {
+  assert.match(await run("places"), /No places configured/);
+  const s = await run("sources");
+  assert.doesNotMatch(s, /No events received/);
+  assert.match(s, /\d+ ev/);
+});

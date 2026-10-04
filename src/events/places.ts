@@ -66,3 +66,8 @@ export function placeVisits(store: EventStore, places: Place[]): Array<{ name: s
     return { name: p.name, events: r.n, last_seen: r.last };
   });
 }
+
+export function renderPlaces(rows: ReturnType<typeof placeVisits>): string {
+  if (!rows.length) return "No places configured (add `places:` to config).\n";
+  return rows.map((p) => `- ${p.name}: ${p.events} events, last ${p.last_seen?.slice(0, 16).replace("T", " ") ?? "never"}`).join("\n") + "\n";
+}

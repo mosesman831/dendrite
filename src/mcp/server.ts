@@ -1,3 +1,5 @@
+import { renderSources, sourceHealth } from "../events/sources.js";
+import { placeVisits, renderPlaces } from "../events/places.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { readFileSync, existsSync } from "node:fs";
@@ -207,6 +209,26 @@ export async function startMcpServer(configPath?: string): Promise<void> {
       let rows = listPeople(index.events, { maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal", limit: 200 });
       if (a.drifting_only) rows = rows.filter((r) => r.drifting);
       return a.format === "json" ? json(rows) : { content: [{ type: "text" as const, text: renderPeople(rows) }] };
+    },
+  );
+
+  server.tool(
+    "source_health",
+    "Which ingest feeds (phone GPS, health, imports, bots) are alive: per-source volume, active days, last received, cadence, and 'stale' for continuous feeds that went silent. Use to judge whether missing data means 'nothing happened' or 'the capture broke'.",
+    { days: z.number().int().min(1).max(365).optional(), format: z.enum(["markdown", "json"]).optional() },
+    async (a) => {
+      const rows = sourceHealth(index.events, { windowDays: a.days ?? 30 });
+      return a.format === "json" ? json(rows) : { content: [{ type: "text" as const, text: renderSources(rows) }] };
+    },
+  );
+
+  server.tool(
+    "places",
+    "The user's named places (geofences from config) with how many events were recorded at each and when last. Events at a place carry it as an entity, so recall/who work with place names too.",
+    { format: z.enum(["markdown", "json"]).optional() },
+    async (a) => {
+      const rows = placeVisits(index.events, config.places ?? []);
+      return a.format === "json" ? json(rows) : { content: [{ type: "text" as const, text: renderPlaces(rows) }] };
     },
   );
 
