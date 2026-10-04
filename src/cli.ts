@@ -19,7 +19,7 @@ import { startMcpServer } from "./mcp/server.js";
 import { runRecord } from "./commands/record.js";
 import { runTimeline, runDigest } from "./commands/timeline.js";
 import { runImport } from "./commands/import.js";
-import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief } from "./commands/recall.js";
+import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights } from "./commands/recall.js";
 import { runTriggersTest } from "./commands/triggers.js";
 import { runPrune, runExport, runBackup } from "./commands/ops.js";
 
@@ -123,6 +123,16 @@ program
   .option("-d, --date <YYYY-MM-DD>", "Day to brief (default: today)")
   .option("--json", "Machine-readable output")
   .action(runBrief);
+
+program
+  .command("insights")
+  .description("Patterns vs the previous period: streams, people/places, metrics, rhythm, loop follow-through")
+  .option("-c, --config <path>", "Config file path")
+  .option("--days <n>", "Window length in days (default 7)")
+  .option("--to <YYYY-MM-DD>", "Last day of the window (default today)")
+  .option("--sensitive", "Include sensitive events (e.g. health)")
+  .option("--json", "Machine-readable output")
+  .action(runInsights);
 
 program
   .command("embed-events")
