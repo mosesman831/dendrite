@@ -13,6 +13,7 @@ import { entityProfile } from "../events/recall.js";
 import { listLoops, renderLoops, setLoopStatus } from "../events/loops.js";
 import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
 import { computeInsights, renderInsights } from "../events/insights.js";
+import { listPeople, renderPeople } from "../events/people.js";
 import { eventEmbeddingsConfig, recallHybrid } from "../events/semantic.js";
 import { ingestEvents, ingestOptionsFromConfig } from "../events/ingest.js";
 import { normalizeTime, localDate } from "../events/time.js";
@@ -195,6 +196,17 @@ export async function startMcpServer(configPath?: string): Promise<void> {
         maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal",
       });
       return a.format === "json" ? json(b) : { content: [{ type: "text" as const, text: renderBriefing(b) }] };
+    },
+  );
+
+  server.tool(
+    "people",
+    "Recurring people, places and things in the user's life log with mention cadence (first/last seen, typical gap). 'drifting' marks ones that have gone quiet relative to their usual rhythm — good for 'who should I catch up with?'.",
+    { drifting_only: z.boolean().optional(), format: z.enum(["markdown", "json"]).optional() },
+    async (a) => {
+      let rows = listPeople(index.events, { maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal", limit: 200 });
+      if (a.drifting_only) rows = rows.filter((r) => r.drifting);
+      return a.format === "json" ? json(rows) : { content: [{ type: "text" as const, text: renderPeople(rows) }] };
     },
   );
 

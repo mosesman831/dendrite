@@ -4,6 +4,7 @@ import { ingestEvents, ingestOptionsFromConfig } from "../events/ingest.js";
 import { listLoops, renderLoops, setLoopStatus, type LoopStatus } from "../events/loops.js";
 import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
 import { computeInsights, renderInsights } from "../events/insights.js";
+import { listPeople, renderPeople } from "../events/people.js";
 import { recallHybrid } from "../events/semantic.js";
 import { summarizeDay, renderTimelineText, eventSummary } from "../events/timeline.js";
 import { localDate, localTime, normalizeTime } from "../events/time.js";
@@ -19,6 +20,7 @@ export const LIFE_COMMANDS = [
   { command: "brief", description: "Today at a glance: agenda, loops, yesterday" },
   { command: "today", description: "Timeline for today (or /today YYYY-MM-DD)" },
   { command: "insights", description: "Patterns vs the previous period: /insights [days]" },
+  { command: "people", description: "Who's active, and who you've drifted from" },
   { command: "loops", description: "Open loops (things you said you'd do)" },
   { command: "done", description: "Close a loop: /done <id>" },
   { command: "snooze", description: "Snooze a loop: /snooze <id> [until]" },
@@ -66,6 +68,8 @@ export async function lifeCommand(d: LifeDeps, cmd: string, arg: string): Promis
       if (!Number.isInteger(days) || days < 1 || days > 366) return "Usage: /insights [days 1–366]";
       return clip(renderInsights(computeInsights(store, { to: today, days, timezone: tz, maxPrivacy: config.insights?.include_sensitive ? "sensitive" : "normal" })));
     }
+    case "people":
+      return clip(renderPeople(listPeople(store, { now: nowIso, limit: 100 })));
     case "loops": {
       const loops = listLoops(store, { status: "active", maxPrivacy: "normal", limit: 30, now: nowIso });
       return loops.length ? clip(renderLoops(loops, today)) : "No open loops. 🎉";

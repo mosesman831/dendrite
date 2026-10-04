@@ -1,6 +1,7 @@
 import express, { type Express, type Request, type Response } from "express";
 import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
 import { computeInsights, renderInsights } from "../events/insights.js";
+import { listPeople, renderPeople } from "../events/people.js";
 import { statSync } from "node:fs";
 import type { DendriteConfig } from "../config.js";
 import type { DendriteIndex } from "../pipeline/index.js";
@@ -252,6 +253,14 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
     const b = buildBriefing(store, date, briefOptionsFromConfig(config));
     if (req.query.format === "markdown") res.type("text/markdown").send(renderBriefing(b));
     else res.json(b);
+  });
+
+  app.get("/v1/people", (req, res) => {
+    if (!guard(req, res)) return;
+    let rows = listPeople(store, { maxPrivacy: req.query.sensitive === "1" ? "sensitive" : "normal", limit: Math.min(500, Number(str(req.query.limit) ?? 100) || 100) });
+    if (req.query.drifting === "1") rows = rows.filter((r) => r.drifting);
+    if (req.query.format === "markdown") res.type("text/markdown").send(renderPeople(rows));
+    else res.json({ people: rows });
   });
 
   app.get("/v1/insights", (req, res) => {
