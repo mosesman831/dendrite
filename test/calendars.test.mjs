@@ -27,6 +27,23 @@ test("calendar sync: env URL, idempotent, source + privacy, namespaced UIDs", as
   assert.equal(store.query({ stream: "calendar", maxPrivacy: "normal" }).events.length, 0);
 });
 
+test("calendar sync: edited VEVENT is updated in place (same id, re-searchable)", async () => {
+  const store = new EventStore(new Database(":memory:"));
+  const cal = { name: "work", url: "https://c/x.ics" };
+  await syncCalendar(store, cal, DEFAULT_INGEST_OPTIONS, async () => ICS);
+  const before = store.query({ stream: "calendar", order: "asc" }).events[0];
+  const moved = ICS.replace("20261005T090000Z", "20261005T140000Z").replace("SUMMARY:Standup", "SUMMARY:Retro with Ines");
+  const r = await syncCalendar(store, cal, DEFAULT_INGEST_OPTIONS, async () => moved);
+  assert.deepEqual([r.accepted, r.updated, r.duplicates], [0, 1, 1]);
+  const after = store.get(before.id);
+  assert.equal(after.occurred_at, "2026-10-05T14:00:00.000Z");
+  assert.match(after.text, /Retro/);
+  assert.equal(after.distilled_at, null);
+  assert.equal(store.query({ stream: "calendar" }).events.length, 2);
+  assert.equal(store.query({ q: "retro" }).events[0]?.id, before.id);
+  assert.equal(store.query({ q: "standup" }).events.length, 0);
+});
+
 test("calendar sync: missing env and fetch errors never leak the URL", async () => {
   const store = new EventStore(new Database(":memory:"));
   const r = await syncCalendar(store, { name: "x", url_env: "NOPE" }, DEFAULT_INGEST_OPTIONS, async () => ICS, {});

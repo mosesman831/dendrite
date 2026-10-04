@@ -216,7 +216,7 @@ export async function runServe(opts: { config?: string }): Promise<void> {
     for (const c of config.calendars ?? []) {
       const tick = () =>
         syncCalendar(ctx.index.events, c, ingestOptionsFromConfig(config))
-          .then((r) => (r.ok ? r.accepted && console.log(`[calendar:${r.name}] +${r.accepted}`) : console.error(`[calendar:${r.name}] ${r.error}`)))
+          .then((r) => (r.ok ? (r.accepted || r.updated) && console.log(`[calendar:${r.name}] +${r.accepted} ~${r.updated}`) : console.error(`[calendar:${r.name}] ${r.error}`)))
           .catch(() => {});
       void tick();
       setInterval(tick, (c.interval_min ?? 30) * 60_000).unref();

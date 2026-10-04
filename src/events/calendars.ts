@@ -17,6 +17,7 @@ export interface CalendarSyncResult {
   events: number;
   accepted: number;
   duplicates: number;
+  updated: number;
   error?: string;
 }
 
@@ -41,7 +42,7 @@ export async function syncCalendar(
   fetchText: FetchText = defaultFetch,
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<CalendarSyncResult> {
-  const res: CalendarSyncResult = { name: c.name, ok: false, events: 0, accepted: 0, duplicates: 0 };
+  const res: CalendarSyncResult = { name: c.name, ok: false, events: 0, accepted: 0, duplicates: 0, updated: 0 };
   const url = calendarUrl(c, env);
   if (!url) return { ...res, error: c.url_env ? `${c.url_env} not set` : "no url" };
   try {
@@ -53,9 +54,10 @@ export async function syncCalendar(
     }));
     res.events = evs.length;
     for (let i = 0; i < evs.length; i += ingest.maxBatch) {
-      const r = ingestEvents(store, evs.slice(i, i + ingest.maxBatch), ingest);
+      const r = ingestEvents(store, evs.slice(i, i + ingest.maxBatch), { ...ingest, upsert: true });
       res.accepted += r.accepted;
       res.duplicates += r.duplicates;
+      res.updated += r.updated ?? 0;
     }
     res.ok = true;
   } catch (e) {

@@ -24,6 +24,8 @@ export interface IngestOptions {
   streamPrivacy: Record<string, PrivacyLevel>;
   streamWeights: Record<string, number>;
   maxBatch: number;
+  /** Rewrite events whose (source, external_id) exists but whose content changed. */
+  upsert?: boolean;
   now?: () => Date;
   /** When set, commitments/todos in new events are tracked as open loops. */
   loops?: LoopOptions;
@@ -138,8 +140,12 @@ export function ingestEvents(store: EventStore, raws: unknown[], opts: IngestOpt
     raws.forEach((raw, index) => {
       try {
         const rec = prepareEvent(raw, opts);
-        if (store.insert(rec) === "duplicate") report.duplicates++;
-        else {
+        const r = store.insert(rec, opts.upsert);
+        if (r === "duplicate") report.duplicates++;
+        else if (r === "updated") {
+          report.updated = (report.updated ?? 0) + 1;
+          report.ids.push(rec.id);
+        } else {
           report.accepted++;
           report.ids.push(rec.id);
           fresh.push({ ...rec, distilled_at: null, note_path: null });
