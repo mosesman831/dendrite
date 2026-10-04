@@ -1,3 +1,4 @@
+import { lastTime, renderLastTime } from "../events/last.js";
 import { renderSources, sourceHealth } from "../events/sources.js";
 import express, { type Express, type Request, type Response } from "express";
 import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
@@ -271,6 +272,18 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
     const b = buildBriefing(store, date, briefOptionsFromConfig(config));
     if (req.query.format === "markdown") res.type("text/markdown").send(renderBriefing(b));
     else res.json(b);
+  });
+
+  app.get("/v1/last", (req, res) => {
+    if (!guard(req, res)) return;
+    const q = str(req.query.q);
+    if (!q) {
+      res.status(400).json({ error: "q is required" });
+      return;
+    }
+    const r = lastTime(store, q, { timezone: config.vault.timezone, maxPrivacy: req.query.sensitive === "1" ? "sensitive" : "normal" });
+    if (req.query.format === "markdown") res.type("text/markdown").send(renderLastTime(r, config.vault.timezone));
+    else res.json(r);
   });
 
   app.get("/v1/sources", (req, res) => {

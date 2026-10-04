@@ -19,7 +19,7 @@ import { startMcpServer } from "./mcp/server.js";
 import { runRecord } from "./commands/record.js";
 import { runTimeline, runDigest } from "./commands/timeline.js";
 import { runImport } from "./commands/import.js";
-import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights, runPeople, runPlaces, runSources, runAliases } from "./commands/recall.js";
+import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights, runPeople, runPlaces, runSources, runAliases, runLast } from "./commands/recall.js";
 import { runTriggersTest } from "./commands/triggers.js";
 import { runPrune, runExport, runBackup } from "./commands/ops.js";
 
@@ -181,6 +181,14 @@ program
   .option("-c, --config <path>", "Config file path")
   .option("--json", "Machine-readable output")
   .action(runWho);
+
+program
+  .command("last <query...>")
+  .description("When did I last …? Most recent matching event, how often it happens, and whether it's overdue")
+  .option("-c, --config <path>", "Config file path")
+  .option("--sensitive", "Include sensitive events")
+  .option("--json", "Machine-readable output")
+  .action(runLast);
 
 program
   .command("export")

@@ -1,3 +1,4 @@
+import { lastTime, renderLastTime } from "../events/last.js";
 import type { DendriteConfig, EmbeddingsConfig } from "../config.js";
 import type { EventStore } from "../events/store.js";
 import { ingestEvents, ingestOptionsFromConfig } from "../events/ingest.js";
@@ -30,6 +31,7 @@ export const LIFE_COMMANDS = [
   { command: "snooze", description: "Snooze a loop: /snooze <id> [until]" },
   { command: "drop", description: "Drop a loop: /drop <id>" },
   { command: "recall", description: "Search your life log: /recall <query>" },
+  { command: "last", description: "When did I last…? /last <thing>" },
   { command: "log", description: "Record an event verbatim: /log <text>" },
   { command: "where", description: "Last known location" },
 ] as const;
@@ -98,6 +100,9 @@ export async function lifeCommand(d: LifeDeps, cmd: string, arg: string): Promis
       if (!l) return "Loop not found.";
       return status === "snoozed" ? `Snoozed until ${localDate(until!, tz)} ${localTime(until!, tz)}: ${l.text}` : `${status === "done" ? "✓ Done" : "✗ Dropped"}: ${l.text}`;
     }
+    case "last":
+      if (!a) return "Usage: /last <thing> — e.g. /last haircut";
+      return clip(renderLastTime(lastTime(store, a, { now: nowIso, timezone: tz }), tz));
     case "recall": {
       if (!a) return "Usage: /recall <what to look for>";
       const pack = await recallHybrid(store, { q: a, limit: 12, timezone: tz, maxPrivacy: "normal" }, d.emb ?? null);
