@@ -59,7 +59,9 @@ export function buildBriefing(store: EventStore, date: string, o: BriefingOption
   const top = (s: { highlights: TimelineEntry[]; timeline: TimelineEntry[] }, n: number) =>
     (s.highlights.length ? s.highlights : s.timeline).slice(0, n);
 
-  const agenda = summarizeDay(store, date, { ...base, stream: o.agendaStreams ?? ["calendar"], maxTimeline: 50 }).timeline;
+  const agenda = summarizeDay(store, date, { ...base, stream: o.agendaStreams ?? ["calendar"], maxTimeline: 50 }).timeline.filter(
+    (e) => e.kind !== "cancelled",
+  );
 
   const active = listLoops(store, { status: "active", maxPrivacy: base.maxPrivacy, limit: 500 });
   const soonEnd = addDays(date, o.soonDays ?? 3);

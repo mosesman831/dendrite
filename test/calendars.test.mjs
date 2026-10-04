@@ -53,3 +53,18 @@ test("calendar sync: missing env and fetch errors never leak the URL", async () 
   assert.doesNotMatch(bad.error, /s3cret/);
   assert.equal(calendarUrl({ name: "y" }), null);
 });
+
+test("calendar sync: STATUS:CANCELLED updates the event to kind=cancelled and drops it from the agenda", async () => {
+  const { buildBriefing } = await dist("events/briefing.js");
+  const store = new EventStore(new Database(":memory:"));
+  const cal = { name: "work", url: "https://c/x.ics" };
+  await syncCalendar(store, cal, DEFAULT_INGEST_OPTIONS, async () => ICS);
+  assert.equal(buildBriefing(store, "2026-10-05", { timezone: "UTC" }).agenda.length, 1);
+  const cancelled = ICS.replace("SUMMARY:Standup", "SUMMARY:Standup\r\nSTATUS:CANCELLED");
+  const r = await syncCalendar(store, cal, DEFAULT_INGEST_OPTIONS, async () => cancelled);
+  assert.equal(r.updated, 1);
+  const ev = store.query({ stream: "calendar", kind: "cancelled" }).events;
+  assert.equal(ev.length, 1);
+  assert.match(ev[0].text, /^Cancelled: Standup/);
+  assert.equal(buildBriefing(store, "2026-10-05", { timezone: "UTC" }).agenda.length, 0);
+});
