@@ -68,3 +68,22 @@ test("calendar sync: STATUS:CANCELLED updates the event to kind=cancelled and dr
   assert.match(ev[0].text, /^Cancelled: Standup/);
   assert.equal(buildBriefing(store, "2026-10-05", { timezone: "UTC" }).agenda.length, 0);
 });
+
+test("now: shows in-progress + upcoming calendar entries, skips past and cancelled", async () => {
+  const { buildNow, renderNow } = await dist("events/now.js");
+  const store = new EventStore(new Database(":memory:"));
+  const { ingestEvents } = await dist("events/ingest.js");
+  const cal = (id, start, end, text, kind = "event") => ({ stream: "calendar", source: "ics", kind, external_id: id, occurred_at: start, ended_at: end, text });
+  ingestEvents(store, [
+    cal("p", "2026-10-05T07:00:00Z", "2026-10-05T08:00:00Z", "Past thing"),
+    cal("i", "2026-10-05T09:30:00Z", "2026-10-05T10:30:00Z", "Deep work"),
+    cal("x", "2026-10-05T11:00:00Z", null, "Cancelled: Sync", "cancelled"),
+    cal("u", "2026-10-05T13:00:00Z", "2026-10-05T14:00:00Z", "Lunch with Ines"),
+    cal("f", "2026-10-07T13:00:00Z", null, "Far future"),
+  ], DEFAULT_INGEST_OPTIONS);
+  const n = buildNow(store, { now: "2026-10-05T10:00:00Z" });
+  assert.deepEqual(n.next.map((e) => [e.in_progress, e.at]), [[true, "2026-10-05T09:30:00Z"], [false, "2026-10-05T13:00:00Z"]].map(([a, b]) => [a, new Date(b).toISOString()]));
+  const md = renderNow(n);
+  assert.match(md, /\*\*Next:\*\*\n- now \(until 10:30\) Deep work\n- 2026-10-05 13:00 Lunch with Ines/);
+  assert.doesNotMatch(md.split("**Recent:**")[0], /Far future|Past thing|Sync/);
+});

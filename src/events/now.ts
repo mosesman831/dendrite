@@ -26,6 +26,8 @@ export interface NowSnapshot {
   stale_sources: string[];
   /** Earlier non-location events tagged with the current place (before this visit). */
   last_here: Array<{ at: string; stream: string; summary: string }>;
+  /** In-progress and upcoming calendar entries in the next 24h (cancelled excluded). */
+  next: Array<{ at: string; ended_at: string | null; summary: string; in_progress: boolean }>;
 }
 
 /** One-call situational awareness for an agent: where the user is, what just happened, what's due, what's broken. */
@@ -47,6 +49,19 @@ export function buildNow(store: EventStore, o: NowOptions = {}): NowSnapshot {
         .slice(0, 3)
         .map((e) => ({ at: e.occurred_at, stream: e.stream, summary: eventSummary(e) }))
     : [];
+  const t = Date.parse(now);
+  const next = store
+    .query({
+      stream: "calendar",
+      maxPrivacy,
+      from: new Date(t - 24 * 3600_000).toISOString(),
+      to: new Date(t + 24 * 3600_000).toISOString(),
+      order: "asc",
+      limit: 200,
+    })
+    .events.filter((e) => e.kind !== "cancelled" && (e.occurred_at >= now || (e.ended_at != null && e.ended_at > now)))
+    .slice(0, 3)
+    .map((e) => ({ at: e.occurred_at, ended_at: e.ended_at, summary: eventSummary(e), in_progress: e.occurred_at < now }));
   return {
     now,
     local: `${today} ${localTime(now, tz)} ${tz}`,
@@ -58,6 +73,7 @@ export function buildNow(store: EventStore, o: NowOptions = {}): NowSnapshot {
     habits_due: habitStatus(store, o.habits ?? [], { now, timezone: tz, maxPrivacy }).filter((h) => h.overdue).map((h) => h.name),
     stale_sources: sourceHealth(store, { now }).filter((s) => s.stale).map((s) => s.source),
     last_here,
+    next,
   };
 }
 
@@ -65,6 +81,16 @@ export function renderNow(n: NowSnapshot, tz = "UTC"): string {
   const out = [`# Now — ${n.local}`];
   if (n.where)
     out.push(`**Where:** ${n.where.place ?? `${n.where.lat.toFixed(4)}, ${n.where.lon.toFixed(4)}`} (as of ${localDate(n.where.at, tz)} ${localTime(n.where.at, tz)})`);
+  if (n.next?.length)
+    out.push(
+      "",
+      "**Next:**",
+      ...n.next.map((e) =>
+        e.in_progress
+          ? `- now (until ${e.ended_at ? localTime(e.ended_at, tz) : "?"}) ${e.summary}`
+          : `- ${localDate(e.at, tz)} ${localTime(e.at, tz)} ${e.summary}`,
+      ),
+    );
   if (n.last_here?.length)
     out.push("", `**Last time at ${n.where?.place}:**`, ...n.last_here.map((r) => `- ${localDate(r.at, tz)} [${r.stream}] ${r.summary}`));
   if (n.loops_due.length) out.push("", "**Due / overdue:**", ...n.loops_due.map((l) => `- [ ] ${l.text} (due ${l.due_date}) \`${l.id.slice(0, 8)}\``));
