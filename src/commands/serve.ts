@@ -6,6 +6,9 @@ import { mountEventsApi } from "../inputs/events-api.js";
 import { startDropFolder } from "../inputs/drop-folder.js";
 import { resolveApiKeys } from "../inputs/http-security.js";
 import { applyRetention } from "../events/retention.js";
+import { writeDigest } from "./timeline.js";
+import { createChatProvider } from "../providers/llm.js";
+import { addDays, localDate } from "../events/time.js";
 import { CronJob } from "cron";
 import { startTelegramBot, runQueueWorker } from "../inputs/telegram.js";
 import {
@@ -42,6 +45,25 @@ export async function runServe(opts: { config?: string }): Promise<void> {
     if (config.inputs.drop_folder.enabled) startDropFolder(config, ctx.index);
     if (!resolveApiKeys(config).length) {
       console.warn("  ⚠ No API keys or webhook token set — /v1 API is OPEN. Set DENDRITE_WEBHOOK_TOKEN or http.api_keys.");
+    }
+    if (config.digest.cron) {
+      const chat = config.digest.narrate ? createChatProvider(llm) : undefined;
+      new CronJob(
+        config.digest.cron,
+        async () => {
+          try {
+            const tz = config.vault.timezone;
+            const y = addDays(localDate(new Date().toISOString(), tz), -1);
+            await writeDigest(ctx.index, config, y, { narrate: config.digest.narrate, chat, log: (m) => console.log(`[digest] ${m}`) });
+          } catch (e) {
+            console.error(`[digest] ${(e as Error).message}`);
+          }
+        },
+        null,
+        true,
+        config.vault.timezone,
+      );
+      console.log(`  Daily digest: ${config.digest.cron}${config.digest.narrate ? " (narrated)" : ""}`);
     }
     if (Object.keys(config.retention.streams).length) {
       new CronJob(config.retention.prune_cron, () => {

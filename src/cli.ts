@@ -145,6 +145,8 @@ program
   .option("-w, --week", "Weekly digest")
   .option("-d, --days <n>", "Backfill N days ending at date", "1")
   .option("-s, --stream <names>", "Comma-separated streams")
+  .option("--narrate", "Add an LLM-written summary + open loops (falls back to deterministic on failure)")
+  .option("--no-narrate", "Disable narration even if digest.narrate is set")
   .option("--dry-run", "Print instead of writing")
   .action(runDigest);
 
