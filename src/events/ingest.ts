@@ -1,3 +1,4 @@
+import { aliasMap, canonicalize } from "./aliases.js";
 import { matchPlace, placeTag, type Place } from "./places.js";
 import { trackLoops, type LoopOptions } from "./loops.js";
 import { EventInputSchema, MAX_DATA_BYTES, MAX_TEXT_BYTES, type EventInput, type EventRecord, type IngestReport, type PrivacyLevel } from "./types.js";
@@ -27,6 +28,7 @@ export interface IngestOptions {
   /** When set, commitments/todos in new events are tracked as open loops. */
   loops?: LoopOptions;
   places?: Place[];
+  aliases?: Record<string, string[]>;
 }
 
 export function ingestOptionsFromConfig(config: DendriteConfig): IngestOptions {
@@ -41,6 +43,7 @@ export function ingestOptionsFromConfig(config: DendriteConfig): IngestOptions {
       ? { exclude: config.loops.exclude_streams, autoResolve: config.loops.auto_resolve, timezone: config.vault?.timezone }
       : undefined,
     places: config.places ?? [],
+    aliases: config.aliases ?? {},
   };
 }
 
@@ -96,7 +99,7 @@ export function prepareEvent(raw: unknown, opts: IngestOptions = DEFAULT_INGEST_
   }
   const auto = text ? extractEntities(text) : { entities: [], tags: [] };
   const place = matchPlace(e.lat, e.lon, opts.places);
-  const entities = uniq([...(e.entities ?? []), ...(place ? [place.name] : []), ...auto.entities]).slice(0, 100);
+  const entities = canonicalize(uniq([...(e.entities ?? []), ...(place ? [place.name] : []), ...auto.entities]), aliasMap(opts.aliases)).slice(0, 100);
   const tags = uniq([...(e.tags ?? []), ...(place ? [placeTag(place)] : []), ...auto.tags].map((t) => t.replace(/^#/, "").toLowerCase())).slice(0, 100);
   const stream = e.stream.toLowerCase();
   const streamDefault = opts.streamPrivacy[stream] ?? opts.streamPrivacy[stream.split(":")[0]] ?? "normal";

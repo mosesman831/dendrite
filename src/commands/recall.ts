@@ -1,3 +1,4 @@
+import { aliasUsage, applyAliases } from "../events/aliases.js";
 import { renderSources, sourceHealth } from "../events/sources.js";
 import { loadConfig } from "../config.js";
 import { DendriteIndex } from "../pipeline/index.js";
@@ -184,6 +185,23 @@ export async function runSources(opts: { config?: string; days?: string; json?: 
   try {
     const rows = sourceHealth(index.events, { windowDays: Number(opts.days ?? 30) || 30 });
     console.log(opts.json ? JSON.stringify(rows, null, 2) : renderSources(rows));
+  } finally {
+    index.close();
+  }
+}
+
+export async function runAliases(opts: { config?: string; apply?: boolean; json?: boolean }): Promise<void> {
+  const { config } = loadConfig(opts.config);
+  const index = new DendriteIndex(config.index.db_path);
+  try {
+    if (!Object.keys(config.aliases).length) {
+      console.log('No aliases configured. Add e.g.\naliases:\n  "Priya Shah": [Priya, "P. Shah"]');
+      return;
+    }
+    if (opts.apply) console.log(`Merged aliases in ${applyAliases(index.events, config.aliases)} event(s).`);
+    const u = aliasUsage(index.events, config.aliases);
+    if (opts.json) console.log(JSON.stringify(u, null, 2));
+    else for (const r of u) console.log(`${r.alias.padEnd(20)} → ${r.canonical.padEnd(20)} ${r.events} unmerged event(s)`);
   } finally {
     index.close();
   }
