@@ -26,3 +26,18 @@ test("now snapshot: place, due loops, habits, recent; secret + future excluded",
   assert.match(md, /\*\*Where:\*\* Home/);
   assert.doesNotMatch(md, /secret diary|future plan/);
 });
+
+test("now snapshot: last_here recalls earlier events at the current place", () => {
+  const store = new EventStore(new Database(":memory:"));
+  ingestEvents(store, [
+    { stream: "note", kind: "m", text: "Great flat white, met Ines here", entities: ["Blue Cafe"], occurred_at: "2026-09-20T10:00:00Z" },
+    { stream: "note", kind: "m", text: "secret at cafe", entities: ["Blue Cafe"], privacy: "secret", occurred_at: "2026-09-21T10:00:00Z" },
+    { stream: "location", kind: "point", lat: 40.0, lon: -3.0, data: { a: 1 }, occurred_at: "2026-10-04T07:50:00Z" },
+  ], DEFAULT_INGEST_OPTIONS);
+  const places = [{ name: "Blue Cafe", lat: 40.0, lon: -3.0, radius_m: 50 }];
+  const n = buildNow(store, { now: "2026-10-04T08:00:00Z", places });
+  assert.equal(n.where.place, "Blue Cafe");
+  assert.deepEqual(n.last_here.map((e) => e.summary), ["Great flat white, met Ines here"]);
+  assert.match(renderNow(n), /\*\*Last time at Blue Cafe:\*\*\n- 2026-09-20 \[note\] Great flat white/);
+  assert.deepEqual(buildNow(store, { now: "2026-10-04T08:00:00Z" }).last_here, []);
+});
