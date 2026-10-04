@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { closeSync, existsSync, openSync, readFileSync, readSync, statSync } from "node:fs";
+import { staysFromItems, streamAppleHealth } from "../events/importers-life.js";
 import { join } from "node:path";
 import { loadConfig } from "../config.js";
 import { DendriteIndex } from "../pipeline/index.js";
@@ -18,12 +19,21 @@ export interface ImportSummary {
 }
 
 /** Parse + ingest a file (or git repo) in chunks. Shared by CLI and drop-folder watcher. */
-export function importPath(
+export async function importPath(
   store: EventStore,
   path: string,
   ingestOpts: IngestOptions,
-  opts: { format?: string; stream?: string; kind?: string; source?: string; limit?: number } = {},
-): ImportSummary {
+  opts: {
+    format?: string;
+    stream?: string;
+    kind?: string;
+    source?: string;
+    limit?: number;
+    stays?: boolean;
+    since?: string;
+    types?: string[];
+  } = {},
+): Promise<ImportSummary> {
   if (!existsSync(path)) throw new Error(`not found: ${path}`);
   const isDir = statSync(path).isDirectory();
   let format: ImportFormat;
@@ -34,10 +44,16 @@ export function importPath(
     format = "git";
     parsed = readGitLog(path, opts);
   } else {
+    const sniff = readHead(path);
+    format = (opts.format as ImportFormat) ?? detectFormat(path, sniff);
+    if (format === "apple-health") return importAppleHealth(store, path, ingestOpts, opts);
     const content = readFileSync(path, "utf8");
-    format = (opts.format as ImportFormat) ?? detectFormat(path, content);
+    if (!opts.format && detectFormat(path, content) !== format) format = detectFormat(path, content);
     if (!IMPORT_FORMATS.includes(format)) throw new Error(`unknown format ${format}; use ${IMPORT_FORMATS.join("|")}`);
     parsed = parseImport(format, content, opts);
+    if (opts.stays && (format === "gpx" || format === "takeout-location" || format === "json")) {
+      parsed.items.push(...staysFromItems(parsed.items, opts.source ?? format));
+    }
   }
   const summary: ImportSummary = {
     file: path,
@@ -60,16 +76,57 @@ export function importPath(
   return summary;
 }
 
+function readHead(path: string, n = 4096): string {
+  const fd = openSync(path, "r");
+  try {
+    const buf = Buffer.alloc(n);
+    const len = readSync(fd, buf, 0, n, 0);
+    return buf.subarray(0, len).toString("utf8");
+  } finally {
+    closeSync(fd);
+  }
+}
+
+async function importAppleHealth(
+  store: EventStore,
+  path: string,
+  ingestOpts: IngestOptions,
+  opts: { since?: string; types?: string[]; stream?: string; kind?: string; source?: string },
+): Promise<ImportSummary> {
+  const summary: ImportSummary = { file: path, format: "apple-health", parsed: 0, accepted: 0, duplicates: 0, rejected: 0, errors: [] };
+  for await (const batch of streamAppleHealth(path, opts, ingestOpts.maxBatch)) {
+    const r = ingestEvents(store, batch, ingestOpts);
+    summary.errors.push(...r.rejected.slice(0, 100 - Math.min(100, summary.errors.length)).map((e) => ({ index: e.index + summary.parsed, error: e.error })));
+    summary.parsed += batch.length;
+    summary.accepted += r.accepted;
+    summary.duplicates += r.duplicates;
+    summary.rejected += r.rejected.length;
+  }
+  return summary;
+}
+
 export async function runImport(
   path: string,
-  opts: { config?: string; format?: string; stream?: string; kind?: string; source?: string; limit?: string; json?: boolean },
+  opts: {
+    config?: string;
+    format?: string;
+    stream?: string;
+    kind?: string;
+    source?: string;
+    limit?: string;
+    json?: boolean;
+    stays?: boolean;
+    since?: string;
+    types?: string;
+  },
 ): Promise<void> {
   const { config } = loadConfig(opts.config);
   const index = new DendriteIndex(config.index.db_path);
   try {
-    const s = importPath(index.events, path, ingestOptionsFromConfig(config), {
+    const s = await importPath(index.events, path, ingestOptionsFromConfig(config), {
       ...opts,
       limit: opts.limit ? Number(opts.limit) : undefined,
+      types: opts.types?.split(","),
     });
     if (opts.json) console.log(JSON.stringify(s, null, 2));
     else {
