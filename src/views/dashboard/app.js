@@ -375,6 +375,12 @@ function loadNow() {
     var n = r[0], habits = r[1].habits || [], sources = (r[2].sources || []).filter(function(s) { return s.continuous; });
     var where = n.where ? (n.where.place || n.where.lat.toFixed(4) + ', ' + n.where.lon.toFixed(4)) : null;
     var html = '<div class="now-row"><span class="muted">Where</span> ' + (where ? '<b>' + escHtml(where) + '</b>' : '<span class="muted">unknown</span>') + '</div>';
+    (n.next || []).forEach(function(e) {
+      var when = e.in_progress
+        ? 'now' + (e.ended_at ? ' – ' + new Date(e.ended_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')
+        : new Date(e.at).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+      html += '<div class="now-row"><span class="muted">' + (e.in_progress ? 'In' : 'Next') + '</span> <b>' + escHtml(e.summary) + '</b> <span class="muted">' + escHtml(when) + '</span></div>';
+    });
     if (habits.length) html += '<div class="chips">' + habits.map(function(h) {
       var t = h.last ? (h.days_ago === 0 ? 'today' : h.days_ago + 'd') : 'never';
       return '<span class="chip' + (h.overdue ? ' warn' : '') + '" title="every ' + h.every_days + 'd · ' + h.done_30d + '× in 30d">' +
