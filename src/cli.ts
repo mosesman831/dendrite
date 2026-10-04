@@ -19,7 +19,7 @@ import { startMcpServer } from "./mcp/server.js";
 import { runRecord } from "./commands/record.js";
 import { runTimeline, runDigest } from "./commands/timeline.js";
 import { runImport } from "./commands/import.js";
-import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights, runPeople, runPlaces, runSources, runAliases, runEntitiesPrune, runLast, runHabits, runNow } from "./commands/recall.js";
+import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights, runPeople, runPlaces, runSources, runAliases, runEntitiesPrune, runLast, runHabits, runNow, runPrep } from "./commands/recall.js";
 import { runCalendarSync } from "./commands/calendars.js";
 import { runTriggersTest } from "./commands/triggers.js";
 import { runPrune, runExport, runBackup } from "./commands/ops.js";
@@ -213,6 +213,15 @@ program
   .option("--sensitive", "Include sensitive events")
   .option("--json", "Machine-readable output")
   .action(runNow);
+
+program
+  .command("prep")
+  .description("Meeting prep: people in your next calendar entry, last interactions, open loops with them")
+  .option("-c, --config <path>", "Config file path")
+  .option("--event <id>", "Prep for a specific calendar event id")
+  .option("--sensitive", "Include sensitive events")
+  .option("--json", "Machine-readable output")
+  .action(runPrep);
 
 program
   .command("calendar-sync")

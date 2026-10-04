@@ -1,4 +1,5 @@
 import { buildNow, renderNow } from "../events/now.js";
+import { buildPrep, renderPrep } from "../events/prep.js";
 import { habitStatus, renderHabits } from "../events/habits.js";
 import { lastTime, renderLastTime } from "../events/last.js";
 import { aliasUsage, applyAliases, pruneNoiseEntities } from "../events/aliases.js";
@@ -225,6 +226,17 @@ export async function runEntitiesPrune(opts: { config?: string; apply?: boolean;
       for (const x of r) console.log(`${x.entity.padEnd(20)} ${x.events} event(s)`);
       console.log(opts.apply ? `Removed ${r.length} noise entit${r.length === 1 ? "y" : "ies"}.` : "Run with --apply to remove them (event text is untouched).");
     }
+  } finally {
+    index.close();
+  }
+}
+
+export async function runPrep(opts: { config?: string; json?: boolean; sensitive?: boolean; event?: string }): Promise<void> {
+  const { config } = loadConfig(opts.config);
+  const index = new DendriteIndex(config.index.db_path);
+  try {
+    const p = buildPrep(index.events, { eventId: opts.event, aliases: config.aliases, maxPrivacy: opts.sensitive ? "sensitive" : "normal" });
+    console.log(opts.json ? JSON.stringify(p, null, 2) : renderPrep(p, config.vault.timezone));
   } finally {
     index.close();
   }
