@@ -8,6 +8,8 @@ import type { SttConfig } from "../providers/types.js";
 const execFileAsync = promisify(execFile);
 import { DendriteIndex } from "../pipeline/index.js";
 import { testChatEndpoint } from "../providers/llm.js";
+import { eventLogHealth, type EventLogHealth } from "../events/health.js";
+import { resolveApiKeys } from "../inputs/http-security.js";
 
 function countDanglingLinks(vaultPath: string, index: DendriteIndex): number {
   const notes = index.listAllNotes();
@@ -73,6 +75,7 @@ export async function runDoctor(opts: {
     embedding_coverage: { embedded: number; total: number; pct: number };
     queue: { pending: number; processing: number; done: number; dead: number };
     dangling_links: number;
+    event_log?: EventLogHealth;
   } = {
     ok: true,
     config: false,
@@ -205,6 +208,9 @@ export async function runDoctor(opts: {
 
     health.queue = index.queueStatusCounts();
     health.dangling_links = countDanglingLinks(config.vault.path, index);
+    const ev = eventLogHealth(index.events, { apiKeys: resolveApiKeys(config).length });
+    health.event_log = ev;
+    if (ev.integrity !== "ok") health.ok = false;
 
     index.close();
 
@@ -213,6 +219,9 @@ export async function runDoctor(opts: {
       `  Queue: pending=${health.queue.pending} processing=${health.queue.processing} dead=${health.queue.dead}`,
     );
     line(`  Dangling links: ${health.dangling_links}`);
+    line(`\n  Event log: ${ev.events} event(s)${ev.oldest ? ` since ${ev.oldest.slice(0, 10)}` : ""}, last received ${ev.newest_received ?? "never"}`);
+    line(`    Integrity: ${ev.integrity} · undistilled: ${ev.undistilled} · active loops: ${ev.loops_active}`);
+    for (const w of ev.warnings) line(`    ⚠ ${w}`);
 
     if (opts.stats) {
       const idx = new DendriteIndex(config.index.db_path);
