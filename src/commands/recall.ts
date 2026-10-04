@@ -70,6 +70,10 @@ export async function runWho(name: string, opts: { config?: string; json?: boole
     console.log(`${p.count} event(s), ${localDate(p.first_at!, tz)} → ${localDate(p.last_at!, tz)}`);
     console.log(`Streams: ${p.streams.map((s) => `${s.stream} (${s.count})`).join(", ")}`);
     if (p.related.length) console.log(`Often with: ${p.related.map((r) => `${r.entity} (${r.count})`).join(", ")}`);
+    if (p.open_loops.length) {
+      console.log("\nOpen loops:");
+      for (const l of p.open_loops) console.log(`- ${l.text}${l.due_date ? ` (due ${l.due_date})` : ""}`);
+    }
     console.log("\nRecent:");
     for (const e of p.recent) console.log(`- ${localDate(e.occurred_at, tz)} [${e.stream}] ${eventSummary(e, 160)}`);
   } finally {

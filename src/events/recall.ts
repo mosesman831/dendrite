@@ -184,6 +184,7 @@ export interface EntityProfile {
   streams: Array<{ stream: string; count: number }>;
   related: Array<{ entity: string; count: number }>;
   recent: EventRecord[];
+  open_loops: Array<{ id: string; text: string; due_date: string | null }>;
 }
 
 /** Everything known about a person/place/thing: activity span, streams, co-mentions, recent events. */
@@ -212,7 +213,18 @@ export function entityProfile(
     )
     .all(name, ...allowed) as Array<{ entity: string; count: number }>;
   const recent = store.query({ entity: name, maxPrivacy: o.maxPrivacy ?? "sensitive", limit: o.recent ?? 10 }).events;
-  return { entity: name, ...agg, streams, related, recent };
+  const loopLv = (o.maxPrivacy ?? "sensitive") === "normal" ? ["normal"] : ["normal", "sensitive"];
+  const open_loops = db
+    .prepare(
+      `SELECT DISTINCT l.id AS id, l.text AS text, l.due_date AS due_date FROM open_loops l
+       LEFT JOIN event_entities ee ON ee.event_id = l.event_id AND ee.entity = ?
+       WHERE (ee.entity IS NOT NULL OR instr(lower(l.text), lower(?)) > 0)
+         AND (l.status = 'open' OR (l.status = 'snoozed' AND l.snooze_until <= ?))
+         AND l.privacy IN (${loopLv.map(() => "?").join(",")})
+       ORDER BY CASE WHEN l.due_date IS NULL THEN 1 ELSE 0 END, l.due_date LIMIT 20`,
+    )
+    .all(name, name, new Date().toISOString(), ...loopLv) as EntityProfile["open_loops"];
+  return { entity: name, ...agg, streams, related, recent, open_loops };
 }
 
 /** Alias → canonical, else the stored spelling of a case-insensitive match, else the input. */
