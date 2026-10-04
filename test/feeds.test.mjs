@@ -6,6 +6,7 @@ import { dist } from "./helpers.mjs";
 const { EventStore } = await dist("events/store.js");
 const { DEFAULT_INGEST_OPTIONS } = await dist("events/ingest.js");
 const { parseFeed, syncFeed } = await dist("events/feeds.js");
+const { sourceHealth } = await dist("events/sources.js");
 
 const RSS = `<?xml version="1.0"?><rss><channel><title>Letterboxd</title>
 <item><title>Dune: Part Two, 2024 - &#9733;&#9733;&#9733;&#9733;</title><link>https://letterboxd.com/x/film/dune-2/</link>
@@ -47,4 +48,20 @@ test("syncFeed: idempotent, namespaced, privacy, no url leak", async () => {
   assert.equal(bad.ok, false);
   assert.ok(!bad.error.includes("secret.example"));
   assert.equal((await syncFeed(store, sub, DEFAULT_INGEST_OPTIONS, async () => RSS, {})).error, "LB_RSS not set");
+});
+
+test("source health tracks subscription sync status, not just new items", async () => {
+  const store = new EventStore(new Database(":memory:"));
+  const sub = { name: "yt", url: "https://x.example/feed", interval_min: 60 };
+  await syncFeed(store, sub, DEFAULT_INGEST_OPTIONS, async () => ATOM, {}, () => "2026-10-01T00:00:00.000Z");
+  await syncFeed(store, sub, DEFAULT_INGEST_OPTIONS, async () => ATOM, {}, () => "2026-10-04T00:00:00.000Z");
+  let row = sourceHealth(store, { now: "2026-10-04T01:00:00.000Z", windowDays: 3650 }).find((r) => r.source === "feed:yt");
+  assert.equal(row.continuous, true);
+  assert.equal(row.stale, false);
+  await syncFeed(store, sub, DEFAULT_INGEST_OPTIONS, async () => { throw new Error("HTTP 410"); }, {}, () => "2026-10-04T12:00:00.000Z");
+  row = sourceHealth(store, { now: "2026-10-04T12:00:00.000Z", windowDays: 3650 }).find((r) => r.source === "feed:yt");
+  assert.equal(row.error, "HTTP 410");
+  assert.equal(row.stale, true);
+  await syncFeed(store, { name: "nourl" }, DEFAULT_INGEST_OPTIONS, async () => ATOM, {});
+  assert.equal(sourceHealth(store).find((r) => r.source === "feed:nourl").stale, true);
 });

@@ -465,6 +465,8 @@ feeds:
 
 `serve` polls each feed (default every 60 min); `dendrite feed-sync` runs it once. Each item becomes a `<stream>/item` event (default stream `feed`) with the title and plain-text summary. Items are deduplicated by guid, falling back to the link. Feeds are append-only.
 
+Calendar and feed subscriptions report their sync status to `dendrite sources`, `/v1/health`, `doctor` and the briefing. A subscription is flagged when it has had no successful sync for 3× its interval (minimum 6h), or when it has never synced (e.g. its env var is missing), and the last error is shown. A calendar that simply has no new events is not flagged.
+
 Each receiver replies in the format its app expects. Retries and overlapping batches are de-duplicated by external id. Location fixes then feed `/where`, stays and the timeline.
 
 ### Entity aliases

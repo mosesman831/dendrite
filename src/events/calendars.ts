@@ -1,5 +1,6 @@
 import type { EventStore } from "./store.js";
 import { ingestEvents, type IngestOptions } from "./ingest.js";
+import { recordSync } from "./sources.js";
 import { parseIcs } from "./importers.js";
 import type { PrivacyLevel } from "./types.js";
 
@@ -44,7 +45,11 @@ export async function syncCalendar(
 ): Promise<CalendarSyncResult> {
   const res: CalendarSyncResult = { name: c.name, ok: false, events: 0, accepted: 0, duplicates: 0, updated: 0 };
   const url = calendarUrl(c, env);
-  if (!url) return { ...res, error: c.url_env ? `${c.url_env} not set` : "no url" };
+  if (!url) {
+    res.error = c.url_env ? `${c.url_env} not set` : "no url";
+    recordSync(store, `ics:${c.name}`, c.interval_min ?? 30, res.error);
+    return res;
+  }
   try {
     const { items } = parseIcs(await fetchText(url), { source: `ics:${c.name}` });
     const evs = (items as Array<Record<string, unknown>>).map((e) => ({
@@ -64,5 +69,6 @@ export async function syncCalendar(
     // Never echo the URL: subscription links are secrets.
     res.error = (e as Error).message.replace(/https?:\/\/\S+/g, "<url>");
   }
+  recordSync(store, `ics:${c.name}`, c.interval_min ?? 30, res.error);
   return res;
 }
