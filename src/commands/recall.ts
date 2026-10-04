@@ -1,7 +1,7 @@
 import { buildNow, renderNow } from "../events/now.js";
 import { habitStatus, renderHabits } from "../events/habits.js";
 import { lastTime, renderLastTime } from "../events/last.js";
-import { aliasUsage, applyAliases } from "../events/aliases.js";
+import { aliasUsage, applyAliases, pruneNoiseEntities } from "../events/aliases.js";
 import { renderSources, sourceHealth } from "../events/sources.js";
 import { loadConfig } from "../config.js";
 import { DendriteIndex } from "../pipeline/index.js";
@@ -209,6 +209,22 @@ export async function runAliases(opts: { config?: string; apply?: boolean; json?
     const u = aliasUsage(index.events, config.aliases);
     if (opts.json) console.log(JSON.stringify(u, null, 2));
     else for (const r of u) console.log(`${r.alias.padEnd(20)} → ${r.canonical.padEnd(20)} ${r.events} unmerged event(s)`);
+  } finally {
+    index.close();
+  }
+}
+
+export async function runEntitiesPrune(opts: { config?: string; apply?: boolean; json?: boolean }): Promise<void> {
+  const { config } = loadConfig(opts.config);
+  const index = new DendriteIndex(config.index.db_path);
+  try {
+    const r = pruneNoiseEntities(index.events, { apply: opts.apply });
+    if (opts.json) console.log(JSON.stringify(r, null, 2));
+    else if (!r.length) console.log("No noise entities stored.");
+    else {
+      for (const x of r) console.log(`${x.entity.padEnd(20)} ${x.events} event(s)`);
+      console.log(opts.apply ? `Removed ${r.length} noise entit${r.length === 1 ? "y" : "ies"}.` : "Run with --apply to remove them (event text is untouched).");
+    }
   } finally {
     index.close();
   }

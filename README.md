@@ -466,6 +466,8 @@ aliases:
 
 When an event is ingested, any alias is rewritten to its canonical name, matched case-insensitively. This keeps `people`, `who`, insights and reconnect from splitting one person into several entries. `dendrite aliases` shows how many stored mentions are still under an alias; `dendrite aliases --apply` merges them, and running it again changes nothing.
 
+`dendrite entities-prune` lists stored entities that are only stop or sentence-start words (e.g. "Deep" from "Deep work block", left by older extractor versions); `--apply` removes them from those events (the event text is untouched).
+
 ### Named places
 
 ```yaml
