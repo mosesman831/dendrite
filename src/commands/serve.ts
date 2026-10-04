@@ -1,3 +1,4 @@
+import { rotateBackup } from "../events/backups.js";
 import { loadConfig, loadCompartments } from "../config.js";
 import { createPipelineContext, drainQueue } from "../pipeline/pipeline.js";
 import { createExpressApp, mountWebhookRoute } from "../inputs/webhook.js";
@@ -112,6 +113,15 @@ export async function runServe(opts: { config?: string }): Promise<void> {
         }
       }, null, true, config.vault.timezone);
       console.log(`  Retention: ${Object.entries(config.retention.streams).map(([k, v]) => `${k}=${v}`).join(", ")}`);
+    }
+    if (config.backup?.cron) {
+      const { cron, dir, keep } = config.backup;
+      new CronJob(cron, () => {
+        rotateBackup(ctx.index.db, dir, keep)
+          .then((r) => console.log(`[backup] ${r.path}${r.removed.length ? ` (rotated ${r.removed.length})` : ""}`))
+          .catch((e) => console.error(`[backup] ${(e as Error).message}`));
+      }, null, true, config.vault.timezone);
+      console.log(`  Backups: ${cron} → ${dir} (keep ${keep})`);
     }
     if (config.inputs.webhook.enabled) {
       console.log(`  Webhook: POST /ingest`);

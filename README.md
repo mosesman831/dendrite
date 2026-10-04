@@ -610,6 +610,15 @@ dendrite backup ./backups/dendrite-$(date +%F).db    # online, consistent SQLite
 dendrite prune --dry-run                              # apply retention.streams
 ```
 
+Or let `serve` do it on a schedule, keeping the newest `keep` snapshots (other files in `dir` are never touched):
+
+```yaml
+backup:
+  cron: "0 4 * * *"
+  dir: ./backups
+  keep: 7
+```
+
 ```yaml
 http:
   rate_limit_per_min: 600        # per token/IP; 0 disables; 429 + Retry-After
