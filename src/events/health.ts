@@ -1,5 +1,6 @@
 import type { EventStore } from "./store.js";
 import { sourceHealth } from "./sources.js";
+import { backupStatus, type BackupStatus } from "./backups.js";
 
 export interface EventLogHealth {
   events: number;
@@ -10,11 +11,12 @@ export interface EventLogHealth {
   loops_active: number;
   stale_sources: Array<{ source: string; hours_since: number }>;
   api_open: boolean;
+  backup: BackupStatus | null;
   warnings: string[];
 }
 
 /** Read-only health of the event log: SQLite integrity, freshness, stale feeds, open API. */
-export function eventLogHealth(store: EventStore, o: { apiKeys: number; now?: string; integrity?: boolean }): EventLogHealth {
+export function eventLogHealth(store: EventStore, o: { apiKeys: number; now?: string; integrity?: boolean; backupMaxAgeHours?: number }): EventLogHealth {
   const db = store.db;
   const agg = db
     .prepare(
@@ -37,5 +39,12 @@ export function eventLogHealth(store: EventStore, o: { apiKeys: number; now?: st
   if (integrity !== "ok" && integrity !== "skipped") warnings.push(`SQLite integrity: ${integrity}`);
   if (api_open) warnings.push("No API keys or webhook token set — /v1 API is open to anyone who can reach it");
   for (const s of stale_sources) warnings.push(`Feed ${s.source} silent for ${s.hours_since}h${s.error ? ` — ${s.error}` : ""}`);
-  return { ...agg, undistilled: agg.undistilled ?? 0, integrity, loops_active, stale_sources, api_open, warnings };
+  const backup = backupStatus(store);
+  if (o.backupMaxAgeHours && backup) {
+    const age = (Date.parse(o.now ?? new Date().toISOString()) - Date.parse(backup.ok_at ?? backup.attempt_at)) / 3_600_000;
+    if (backup.error) warnings.push(`Last backup failed: ${backup.error}`);
+    else if (age > o.backupMaxAgeHours) warnings.push(`Last backup is ${Math.round(age)}h old`);
+    else if (!backup.ok_at) warnings.push("No successful backup yet");
+  }
+  return { ...agg, backup, undistilled: agg.undistilled ?? 0, integrity, loops_active, stale_sources, api_open, warnings };
 }
