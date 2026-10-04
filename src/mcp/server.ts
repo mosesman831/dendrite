@@ -1,3 +1,4 @@
+import { buildNow, renderNow } from "../events/now.js";
 import { habitStatus, renderHabits } from "../events/habits.js";
 import { lastTime, renderLastTime } from "../events/last.js";
 import { renderSources, sourceHealth } from "../events/sources.js";
@@ -211,6 +212,17 @@ export async function startMcpServer(configPath?: string): Promise<void> {
       let rows = listPeople(index.events, { maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal", limit: 200 });
       if (a.drifting_only) rows = rows.filter((r) => r.drifting);
       return a.format === "json" ? json(rows) : { content: [{ type: "text" as const, text: renderPeople(rows) }] };
+    },
+  );
+
+  server.tool(
+    "now",
+    "Call first for situational awareness: the user's current local time, last known place, the most recent events, loops due or overdue, habits due, and capture feeds that are down (so missing data isn't misread as inactivity).",
+    { format: z.enum(["markdown", "json"]).optional() },
+    async (a) => {
+      const tz = config.vault.timezone;
+      const n = buildNow(index.events, { timezone: tz, places: config.places, habits: config.habits, maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal" });
+      return a.format === "json" ? json(n) : { content: [{ type: "text" as const, text: renderNow(n, tz) }] };
     },
   );
 

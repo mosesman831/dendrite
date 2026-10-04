@@ -470,6 +470,17 @@ Any event with coordinates inside a place's radius gets the place as an entity a
 
 While `serve` runs, it turns streamed location points into `location/stay` events every `stays.interval_min` minutes (default 15). Stays are named after a configured place when one matches, e.g. "At Home for ~40 min". A stay is only written once you've left it, so the event never changes after it's created. A stay is at least as private as the points it was built from. Configure it under `stays: { live, interval_min, lookback_hours, radius_m, min_minutes }`.
 
+### Now
+
+`dendrite now` (also `GET /v1/now` and MCP `now`) gives an agent the current situation in one call. It returns:
+- local time and the last known place;
+- the latest events (normal privacy by default);
+- loops that are due or overdue;
+- habits that are due;
+- any capture feeds that are down.
+
+Agents should call it at the start of a conversation.
+
 ### Habits
 
 ```yaml
