@@ -423,6 +423,8 @@ Live feed: `GET /v1/stream` (Server-Sent Events) pushes each new event as it's c
 HTTP: `GET /v1/recall?q=&entity=&at=&window=&context=&format=markdown`, `GET /v1/entities/:name`.
 MCP: `recall` (markdown context pack, ready to drop into an agent prompt) and `entity_profile`. Sensitive events are only exposed over MCP when `mcp.include_sensitive: true`.
 
+**Semantic recall.** When `index.embeddings.enabled` is set, event text is embedded incrementally: run `dendrite embed-events`, or let `serve` do it on `index.embeddings.events_cron`, every 10 minutes by default. `recall`, `/v1/recall` and the MCP `recall` tool then blend vector matches with full-text hits, weighted by `hybrid_weight`, so "dog" finds "took the puppy to the vet". Only normal-privacy events are sent to the embeddings provider unless `events_include_sensitive: true`. Secret events are never sent. If the provider fails, recall falls back to full-text search instead of erroring. Turn hybrid matching off for one query with `--no-semantic` or `semantic=0`.
+
 ### Triggers
 
 React to life events as they land: POST a signed webhook, or record a derived event, or both.

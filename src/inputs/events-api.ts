@@ -5,7 +5,9 @@ import type { DendriteIndex } from "../pipeline/index.js";
 import { ingestEvents, ingestOptionsFromConfig, parseNdjson } from "../events/ingest.js";
 import type { EventQuery, PrivacyLevel } from "../events/types.js";
 import { normalizeTime, localDate } from "../events/time.js";
-import { recall, entityProfile } from "../events/recall.js";
+import { entityProfile } from "../events/recall.js";
+import { recallHybrid } from "../events/semantic.js";
+import type { EmbeddingsConfig } from "../config.js";
 import type { EventRecord } from "../events/types.js";
 import { authorize, resolveApiKeys, type Scope } from "./http-security.js";
 import { renderDigestMarkdown, summarizeDay, summarizeWeek } from "../events/timeline.js";
@@ -40,7 +42,7 @@ export function parseEventQuery(q: Record<string, unknown>): EventQuery | { erro
 }
 
 /** Mount /v1 life-event endpoints on an Express app. */
-export function mountEventsApi(app: Express, config: DendriteConfig, index: DendriteIndex): void {
+export function mountEventsApi(app: Express, config: DendriteConfig, index: DendriteIndex, emb: EmbeddingsConfig | null = null): void {
   const store = index.events;
   const opts = ingestOptionsFromConfig(config);
   const maxPrivacy: PrivacyLevel = "sensitive";
@@ -212,13 +214,13 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
     res.type("text/markdown").send(renderDigestMarkdown(s));
   });
 
-  app.get("/v1/recall", (req, res) => {
+  app.get("/v1/recall", async (req, res) => {
     if (!guard(req, res)) return;
     const qs = req.query as Record<string, unknown>;
     const s = (k: string) => (typeof qs[k] === "string" && qs[k] ? (qs[k] as string) : undefined);
     const n = (k: string) => (s(k) !== undefined ? Number(s(k)) : undefined);
     try {
-      const pack = recall(store, {
+      const pack = await recallHybrid(store, {
         q: s("q"),
         entity: s("entity"),
         at: s("at"),
@@ -229,7 +231,7 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
         limit: n("limit"),
         contextMin: n("context"),
         timezone: config.vault.timezone,
-      });
+      }, emb, { semantic: s("semantic") !== "0" && s("semantic") !== "false" });
       if (s("format") === "markdown") res.type("text/markdown").send(pack.markdown);
       else res.json(pack);
     } catch (e) {

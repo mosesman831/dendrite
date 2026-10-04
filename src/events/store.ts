@@ -1,4 +1,5 @@
 import { EventBus } from "./bus.js";
+import { blobToVector, cosineSimilarity, vectorToBlob } from "../providers/embeddings.js";
 import type Database from "better-sqlite3";
 import type {
   EventPage,
@@ -71,7 +72,24 @@ CREATE TABLE IF NOT EXISTS checkpoints (
 );
 `,
   },
+  {
+    version: 2,
+    sql: `
+CREATE TABLE IF NOT EXISTS event_embeddings (
+  event_id TEXT PRIMARY KEY,
+  model TEXT NOT NULL,
+  vector BLOB NOT NULL,
+  updated_at TEXT NOT NULL
+);
+`,
+  },
 ];
+
+const PRIVACY_UP_TO: Record<string, string[]> = {
+  normal: ["normal"],
+  sensitive: ["normal", "sensitive"],
+  secret: ["normal", "sensitive", "secret"],
+};
 
 export function migrate(db: Database.Database): number {
   db.exec(`CREATE TABLE IF NOT EXISTS schema_version (
@@ -381,6 +399,68 @@ export class EventStore {
     this.db.transaction(() => {
       for (const r of rows) for (const ent of parseJson<string[]>(r.entities, [])) ins.run(r.id, ent, r.occurred_at);
     })();
+  }
+
+  /** Events with text that lack an embedding for `model` (newest first). */
+  pendingEmbeddings(model: string, maxPrivacy: PrivacyLevel = "normal", limit = 500): Array<{ id: string; text: string }> {
+    const lv = PRIVACY_UP_TO[maxPrivacy]!;
+    return this.db
+      .prepare(
+        `SELECT e.id AS id, '[' || e.stream || '/' || e.kind || '] ' || e.text AS text
+         FROM events e LEFT JOIN event_embeddings ee ON ee.event_id = e.id AND ee.model = ?
+         WHERE ee.event_id IS NULL AND e.text IS NOT NULL AND length(trim(e.text)) >= 3
+           AND e.privacy IN (${lv.map(() => "?").join(",")})
+         ORDER BY e.occurred_at DESC LIMIT ?`,
+      )
+      .all(model, ...lv, limit) as Array<{ id: string; text: string }>;
+  }
+
+  upsertEmbedding(eventId: string, vector: number[], model: string): void {
+    this.db
+      .prepare(
+        `INSERT INTO event_embeddings(event_id, model, vector, updated_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT(event_id) DO UPDATE SET model = excluded.model, vector = excluded.vector, updated_at = excluded.updated_at`,
+      )
+      .run(eventId, model, vectorToBlob(vector), new Date().toISOString());
+  }
+
+  /** Drop embeddings whose event was deleted/pruned. */
+  pruneOrphanEmbeddings(): number {
+    return this.db.prepare(`DELETE FROM event_embeddings WHERE event_id NOT IN (SELECT id FROM events)`).run().changes;
+  }
+
+  embeddingCount(model?: string): number {
+    const r = (model
+      ? this.db.prepare(`SELECT COUNT(*) AS c FROM event_embeddings WHERE model = ?`).get(model)
+      : this.db.prepare(`SELECT COUNT(*) AS c FROM event_embeddings`).get()) as { c: number };
+    return r.c;
+  }
+
+  /** Brute-force cosine search; fine to ~10^5–10^6 events, filters applied in SQL first. */
+  semanticSearch(
+    vector: number[],
+    o: { model: string; from?: string; to?: string; stream?: string | string[]; maxPrivacy?: PrivacyLevel; limit?: number; minScore?: number },
+  ): Array<{ event: EventRecord; score: number }> {
+    const lv = PRIVACY_UP_TO[o.maxPrivacy ?? "sensitive"]!;
+    const where = ["ee.model = ?", `e.privacy IN (${lv.map(() => "?").join(",")})`];
+    const args: unknown[] = [o.model, ...lv];
+    if (o.from) (where.push("e.occurred_at >= ?"), args.push(o.from));
+    if (o.to) (where.push("e.occurred_at < ?"), args.push(o.to));
+    const streams = o.stream ? (Array.isArray(o.stream) ? o.stream : [o.stream]) : [];
+    if (streams.length) (where.push(`e.stream IN (${streams.map(() => "?").join(",")})`), args.push(...streams.map((x) => x.toLowerCase())));
+    const rows = this.db
+      .prepare(`SELECT ee.event_id AS id, ee.vector AS v FROM event_embeddings ee JOIN events e ON e.id = ee.event_id WHERE ${where.join(" AND ")}`)
+      .all(...args) as Array<{ id: string; v: Buffer }>;
+    const min = o.minScore ?? 0.2;
+    const top = rows
+      .map((r) => ({ id: r.id, score: cosineSimilarity(vector, blobToVector(r.v)) }))
+      .filter((r) => r.score >= min)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, o.limit ?? 20);
+    return top.flatMap((t) => {
+      const event = this.get(t.id);
+      return event ? [{ event, score: t.score }] : [];
+    });
   }
 
   getCheckpoint(name: string): string | null {

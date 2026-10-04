@@ -19,7 +19,7 @@ import { startMcpServer } from "./mcp/server.js";
 import { runRecord } from "./commands/record.js";
 import { runTimeline, runDigest } from "./commands/timeline.js";
 import { runImport } from "./commands/import.js";
-import { runRecall, runWho } from "./commands/recall.js";
+import { runRecall, runWho, runEmbedEvents } from "./commands/recall.js";
 import { runTriggersTest } from "./commands/triggers.js";
 import { runPrune, runExport, runBackup } from "./commands/ops.js";
 
@@ -97,8 +97,17 @@ program
   .option("-s, --stream <names>", "Comma-separated streams")
   .option("-n, --limit <n>", "Max hits (default 20)")
   .option("--context <min>", "Neighbour window per hit in minutes (default 30, 0 = off)")
+  .option("--no-semantic", "Disable hybrid vector matching (FTS only)")
   .option("--json", "Machine-readable output")
   .action(runRecall);
+
+program
+  .command("embed-events")
+  .description("Embed event-log text for semantic recall (incremental; serve also runs this on index.embeddings.events_cron)")
+  .option("-c, --config <path>", "Config file path")
+  .option("--max <n>", "Max events this run (default 50000)")
+  .option("--json", "Machine-readable output")
+  .action(runEmbedEvents);
 
 program
   .command("who <entity>")

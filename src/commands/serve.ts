@@ -11,6 +11,7 @@ import { createChatProvider } from "../providers/llm.js";
 import { addDays, localDate } from "../events/time.js";
 import { CronJob } from "cron";
 import { compileTriggers, startTriggers } from "../events/triggers.js";
+import { embedPendingEvents, eventEmbeddingsConfig, providerEmbedFn } from "../events/semantic.js";
 import { ingestOptionsFromConfig } from "../events/ingest.js";
 import { startTelegramBot, runQueueWorker } from "../inputs/telegram.js";
 import {
@@ -33,7 +34,8 @@ export async function runServe(opts: { config?: string }): Promise<void> {
     app.get("/health", (_req, res) => res.json({ ok: true }));
   }
 
-  mountEventsApi(app, config, ctx.index);
+  const eventEmb = eventEmbeddingsConfig(config, llm.primary.baseURL);
+  mountEventsApi(app, config, ctx.index, eventEmb);
 
   // Mount dashboard routes (always available)
   mountDashboard(app, ctx, compartments, config);
@@ -47,6 +49,26 @@ export async function runServe(opts: { config?: string }): Promise<void> {
     if (config.inputs.drop_folder.enabled) startDropFolder(config, ctx.index);
     if (!resolveApiKeys(config).length) {
       console.warn("  ⚠ No API keys or webhook token set — /v1 API is OPEN. Set DENDRITE_WEBHOOK_TOKEN or http.api_keys.");
+    }
+    if (eventEmb && config.index.embeddings.events_cron) {
+      let running = false;
+      new CronJob(config.index.embeddings.events_cron, async () => {
+        if (running) return;
+        running = true;
+        try {
+          const r = await embedPendingEvents(ctx.index.events, {
+            model: eventEmb.model,
+            embed: providerEmbedFn(eventEmb),
+            includeSensitive: config.index.embeddings.events_include_sensitive,
+            max: 2000,
+            log: (m) => console.warn(m),
+          });
+          if (r.embedded) console.log(`[embed-events] +${r.embedded} (${r.remaining} remaining)`);
+        } finally {
+          running = false;
+        }
+      }, null, true, config.vault.timezone);
+      console.log(`  Event embeddings: ${eventEmb.model} (${config.index.embeddings.events_cron})`);
     }
     const triggers = compileTriggers(config.triggers);
     if (triggers.length) {

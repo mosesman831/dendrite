@@ -9,7 +9,8 @@ import { smartSearch } from "../pipeline/search.js";
 import { answerQuestion } from "../pipeline/answer.js";
 import { FRONTMATTER_CONTRACT } from "../types.js";
 import matter from "gray-matter";
-import { recall, entityProfile } from "../events/recall.js";
+import { entityProfile } from "../events/recall.js";
+import { eventEmbeddingsConfig, recallHybrid } from "../events/semantic.js";
 import { ingestEvents, ingestOptionsFromConfig } from "../events/ingest.js";
 import { normalizeTime, localDate } from "../events/time.js";
 import { summarizeDay, summarizeWeek, renderDigestMarkdown } from "../events/timeline.js";
@@ -155,7 +156,7 @@ export async function startMcpServer(configPath?: string): Promise<void> {
       format: z.enum(["markdown", "json"]).optional(),
     },
     async (a) => {
-      const pack = recall(index.events, {
+      const pack = await recallHybrid(index.events, {
         q: a.q,
         entity: a.entity,
         at: a.at,
@@ -166,7 +167,7 @@ export async function startMcpServer(configPath?: string): Promise<void> {
         limit: a.limit,
         timezone: config.vault.timezone,
         maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal",
-      });
+      }, eventEmbeddingsConfig(config, llm.primary.baseURL));
       return a.format === "json" ? json(pack) : { content: [{ type: "text" as const, text: pack.markdown }] };
     },
   );
