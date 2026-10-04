@@ -9,6 +9,7 @@ import { smartSearch } from "../pipeline/search.js";
 import { answerQuestion } from "../pipeline/answer.js";
 import { FRONTMATTER_CONTRACT } from "../types.js";
 import matter from "gray-matter";
+import { recall, entityProfile } from "../events/recall.js";
 import { ingestEvents, ingestOptionsFromConfig } from "../events/ingest.js";
 import { normalizeTime, localDate } from "../events/time.js";
 import { summarizeDay, summarizeWeek, renderDigestMarkdown } from "../events/timeline.js";
@@ -137,6 +138,45 @@ export async function startMcpServer(configPath?: string): Promise<void> {
       const { event_ids: _ids, ...rest } = s;
       return json(rest);
     },
+  );
+
+  server.tool(
+    "recall",
+    "Second-brain recall over the real-world event log. Give `q` and/or `entity` to find matching moments (each with surrounding context), or `at` (ISO time) to see everything that happened around then. Returns a markdown context pack by default.",
+    {
+      q: z.string().optional().describe("Full-text query"),
+      entity: z.string().optional().describe("Person/place/thing"),
+      at: z.string().optional().describe("Center time (ISO/date)"),
+      window_min: z.number().optional().describe("Window around `at` in minutes (default 60)"),
+      from: z.string().optional(),
+      to: z.string().optional(),
+      streams: z.array(z.string()).optional(),
+      limit: z.number().int().min(1).max(200).optional(),
+      format: z.enum(["markdown", "json"]).optional(),
+    },
+    async (a) => {
+      const pack = recall(index.events, {
+        q: a.q,
+        entity: a.entity,
+        at: a.at,
+        windowMin: a.window_min,
+        from: a.from,
+        to: a.to,
+        stream: a.streams,
+        limit: a.limit,
+        timezone: config.vault.timezone,
+        maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal",
+      });
+      return a.format === "json" ? json(pack) : { content: [{ type: "text" as const, text: pack.markdown }] };
+    },
+  );
+
+  server.tool(
+    "entity_profile",
+    "Everything recorded about a person/place/thing: first/last seen, streams, frequently co-mentioned entities, recent events",
+    { name: z.string() },
+    async ({ name }) =>
+      json(entityProfile(index.events, name, { maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal" })),
   );
 
   server.tool("event_streams", "List event streams with counts, kinds, and first/last timestamps", {}, async () =>
