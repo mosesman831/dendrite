@@ -260,7 +260,7 @@ export async function startMcpServer(configPath?: string): Promise<void> {
     "Everything recorded about a person/place/thing: first/last seen, streams, frequently co-mentioned entities, recent events",
     { name: z.string() },
     async ({ name }) =>
-      json(entityProfile(index.events, name, { maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal" })),
+      json(entityProfile(index.events, name, { maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal", aliases: config.aliases })),
   );
 
   server.tool("event_streams", "List event streams with counts, kinds, and first/last timestamps", {}, async () =>

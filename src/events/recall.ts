@@ -1,3 +1,4 @@
+import { aliasMap } from "./aliases.js";
 import type { EventStore } from "./store.js";
 import type { EventRecord, PrivacyLevel } from "./types.js";
 import { PRIVACY_LEVELS } from "./types.js";
@@ -189,8 +190,9 @@ export interface EntityProfile {
 export function entityProfile(
   store: EventStore,
   name: string,
-  o: { maxPrivacy?: PrivacyLevel; recent?: number } = {},
+  o: { maxPrivacy?: PrivacyLevel; recent?: number; aliases?: Record<string, string[]> } = {},
 ): EntityProfile {
+  name = resolveEntity(store, name, o.aliases);
   const allowed = PRIVACY_LEVELS.filter((p) => privacyRank(p) <= privacyRank(o.maxPrivacy ?? "sensitive"));
   const ph = allowed.map(() => "?").join(",");
   const db = store.db;
@@ -211,4 +213,15 @@ export function entityProfile(
     .all(name, ...allowed) as Array<{ entity: string; count: number }>;
   const recent = store.query({ entity: name, maxPrivacy: o.maxPrivacy ?? "sensitive", limit: o.recent ?? 10 }).events;
   return { entity: name, ...agg, streams, related, recent };
+}
+
+/** Alias → canonical, else the stored spelling of a case-insensitive match, else the input. */
+export function resolveEntity(store: EventStore, name: string, aliases?: Record<string, string[]>): string {
+  const canon = aliasMap(aliases).get(name.trim().toLowerCase());
+  if (canon) return canon;
+  if (store.db.prepare(`SELECT 1 FROM event_entities WHERE entity = ? LIMIT 1`).get(name)) return name;
+  const hit = store.db
+    .prepare(`SELECT entity, COUNT(*) AS n FROM event_entities WHERE lower(entity) = lower(?) GROUP BY entity ORDER BY n DESC LIMIT 1`)
+    .get(name) as { entity: string } | undefined;
+  return hit?.entity ?? name;
 }

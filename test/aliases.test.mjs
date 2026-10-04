@@ -23,3 +23,12 @@ test("aliases collapse at ingest and via backfill", () => {
   assert.equal(applyAliases(store, aliases), 0);
   assert.equal(store.query({ q: "Shah", limit: 10 }).events.length, 2);
 });
+
+test("entityProfile resolves aliases and case", async () => {
+  const { entityProfile } = await dist("events/recall.js");
+  const store = new EventStore(new Database(":memory:"));
+  ingestEvents(store, [ev("Lunch with Priya at noon", 1), ev("Coffee with Priya today", 2)], { ...DEFAULT_INGEST_OPTIONS, aliases });
+  assert.equal(entityProfile(store, "p. shah", { aliases }).count, 2);
+  assert.equal(entityProfile(store, "priya shah").count, 2);
+  assert.equal(entityProfile(store, "Nobody").count, 0);
+});
