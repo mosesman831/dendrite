@@ -52,25 +52,6 @@ working on, and what you've already learned.
 Dendrite is **not** another chatbot. It is infrastructure: an ingestion pipeline
 on one side, a queryable second brain on the other.
 
-### Triggers
-
-React to life events as they land: POST a signed webhook, or record a derived event, or both.
-
-```yaml
-triggers:
-  - name: todo-capture
-    match: { text: "\\b(todo|remind me)\\b" }        # also: stream, kind, source, entity, min_importance
-    record: { stream: tasks, kind: open_loop, text: "From {{stream}}: {{text}}", tags: [auto] }
-  - name: notify-alice
-    match: { entity: [Alice], min_importance: 0.5 }
-    cooldown_sec: 300
-    webhook: { url: https://example.com/hook, secret_env: DENDRITE_HOOK_SECRET, retries: 3 }
-```
-
-- Webhooks send `{trigger, delivery, event}` with `X-Dendrite-Signature: sha256=<HMAC of body>` when `secret_env` is set. Network errors and 5xx/408/429 responses are retried with exponential backoff; other 4xx responses are not retried.
-- Sensitive events only match when `include_sensitive: true`. Secret events never match. Events created by a trigger never re-trigger anything, so rules can't loop.
-- `dendrite triggers-test --since 7d` dry-runs every rule against your history. Nothing is sent or recorded.
-
 ## Why Dendrite (not just an agent)
 
 Every AI agent today can *technically* remember things. In practice, they don't —
@@ -441,6 +422,25 @@ Live feed: `GET /v1/stream` (Server-Sent Events) pushes each new event as it's c
 
 HTTP: `GET /v1/recall?q=&entity=&at=&window=&context=&format=markdown`, `GET /v1/entities/:name`.
 MCP: `recall` (markdown context pack, ready to drop into an agent prompt) and `entity_profile`. Sensitive events are only exposed over MCP when `mcp.include_sensitive: true`.
+
+### Triggers
+
+React to life events as they land: POST a signed webhook, or record a derived event, or both.
+
+```yaml
+triggers:
+  - name: todo-capture
+    match: { text: "\\b(todo|remind me)\\b" }        # also: stream, kind, source, entity, min_importance
+    record: { stream: tasks, kind: open_loop, text: "From {{stream}}: {{text}}", tags: [auto] }
+  - name: notify-alice
+    match: { entity: [Alice], min_importance: 0.5 }
+    cooldown_sec: 300
+    webhook: { url: https://example.com/hook, secret_env: DENDRITE_HOOK_SECRET, retries: 3 }
+```
+
+- Webhooks send `{trigger, delivery, event}` with `X-Dendrite-Signature: sha256=<HMAC of body>` when `secret_env` is set. Network errors and 5xx/408/429 responses are retried with exponential backoff; other 4xx responses are not retried.
+- Sensitive events only match when `include_sensitive: true`. Secret events never match. Events created by a trigger never re-trigger anything, so rules can't loop.
+- `dendrite triggers-test --since 7d` dry-runs every rule against your history. Nothing is sent or recorded.
 
 ### Operations
 
