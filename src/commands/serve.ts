@@ -14,6 +14,7 @@ import { compileTriggers, startTriggers } from "../events/triggers.js";
 import { embedPendingEvents, eventEmbeddingsConfig, providerEmbedFn } from "../events/semantic.js";
 import { ingestOptionsFromConfig } from "../events/ingest.js";
 import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
+import { computeInsights, renderInsights } from "../events/insights.js";
 import { startTelegramBot, runQueueWorker } from "../inputs/telegram.js";
 import {
   scheduleDailyPrompt,
@@ -146,33 +147,50 @@ export async function runServe(opts: { config?: string }): Promise<void> {
     });
   }
 
-  if (config.brief.cron) {
+  const deliver = async (label: string, text: string) => {
+    const token = process.env[config.inputs.telegram.tokenEnv];
+    if (!token || !chatIds.length) {
+      console.log(`[${label}]\n${text}`);
+      return;
+    }
+    for (const chatId of chatIds)
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, text: text.slice(0, 4000) }),
+      });
+  };
+  const schedule = (label: string, cron: string, render: (today: string) => string) =>
     new CronJob(
-      config.brief.cron,
+      cron,
       async () => {
         try {
-          const today = localDate(new Date().toISOString(), config.vault.timezone);
-          const text = renderBriefing(buildBriefing(ctx.index.events, today, briefOptionsFromConfig(config)));
-          const token = process.env[config.inputs.telegram.tokenEnv];
-          if (!token || !chatIds.length) {
-            console.log(`[brief]\n${text}`);
-            return;
-          }
-          for (const chatId of chatIds)
-            await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ chat_id: chatId, text: text.slice(0, 4000) }),
-            });
+          await deliver(label, render(localDate(new Date().toISOString(), config.vault.timezone)));
         } catch (e) {
-          console.error(`[brief] ${(e as Error).message}`);
+          console.error(`[${label}] ${(e as Error).message}`);
         }
       },
       null,
       true,
       config.vault.timezone,
     );
+
+  if (config.brief.cron) {
+    schedule("brief", config.brief.cron, (today) => renderBriefing(buildBriefing(ctx.index.events, today, briefOptionsFromConfig(config))));
     console.log(`  Morning briefing: ${config.brief.cron}`);
+  }
+  if (config.insights?.cron) {
+    schedule("insights", config.insights.cron, (today) =>
+      renderInsights(
+        computeInsights(ctx.index.events, {
+          to: today,
+          days: config.insights.days,
+          timezone: config.vault.timezone,
+          maxPrivacy: config.insights.include_sensitive ? "sensitive" : "normal",
+        }),
+      ),
+    );
+    console.log(`  Weekly review: ${config.insights.cron}`);
   }
 
   console.log("Dendrite serve started");
