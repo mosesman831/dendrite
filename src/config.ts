@@ -228,6 +228,13 @@ export const ConfigSchema = z.object({
       min_minutes: z.number().int().min(1).default(10),
     })
     .default({}),
+  evening: z
+    .object({
+      /** If set, `serve` sends an end-of-day recap + "how was your day?" to Telegram, e.g. "0 21 * * *". */
+      cron: z.string().default(""),
+      include_sensitive: z.boolean().default(false),
+    })
+    .default({}),
   insights: z
     .object({
       /** If set, `serve` sends a period-over-period review to Telegram on this schedule, e.g. "0 18 * * 0" (Sunday 18:00). */

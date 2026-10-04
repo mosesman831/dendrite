@@ -14,6 +14,7 @@ import { compileTriggers, startTriggers } from "../events/triggers.js";
 import { embedPendingEvents, eventEmbeddingsConfig, providerEmbedFn } from "../events/semantic.js";
 import { ingestOptionsFromConfig } from "../events/ingest.js";
 import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
+import { buildEvening, renderEvening } from "../events/evening.js";
 import { computeInsights, renderInsights } from "../events/insights.js";
 import { deriveLiveStays } from "../events/stays.js";
 import { syncCalendar } from "../events/calendars.js";
@@ -182,6 +183,14 @@ export async function runServe(opts: { config?: string }): Promise<void> {
   if (config.brief.cron) {
     schedule("brief", config.brief.cron, (today) => renderBriefing(buildBriefing(ctx.index.events, today, briefOptionsFromConfig(config))));
     console.log(`  Morning briefing: ${config.brief.cron}`);
+  }
+  if (config.evening?.cron) {
+    schedule("evening", config.evening.cron, (today) =>
+      renderEvening(
+        buildEvening(ctx.index.events, today, { timezone: config.vault.timezone, maxPrivacy: config.evening.include_sensitive ? "sensitive" : "normal" }),
+      ),
+    );
+    console.log(`  Evening recap: ${config.evening.cron}`);
   }
   if (config.insights?.cron) {
     schedule("insights", config.insights.cron, (today) =>
