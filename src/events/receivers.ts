@@ -3,6 +3,7 @@
  * - OwnTracks (iOS/Android) HTTP mode: location fixes + region enter/leave
  * - Overland (iOS) GeoJSON batches
  * - Health Auto Export (iOS) REST automation: metrics + workouts
+ * - GitHub repo/org webhooks: commits, PRs, issues, releases (type inferred from payload shape)
  */
 type Raw = Record<string, unknown>;
 
@@ -140,8 +141,59 @@ export function fromHealthAutoExport(body: unknown): Raw[] {
   return out;
 }
 
+/** GitHub webhook payload → work events. Event type is inferred from the body so no header plumbing is needed. */
+export function fromGitHub(body: unknown): Raw[] {
+  const b = obj(body);
+  if (!b) return [];
+  const repo = str(obj(b.repository)?.full_name) ?? "github";
+  const base = { stream: "code", source: "github", tags: ["github"] };
+  const action = str(b.action);
+  const commits = Array.isArray(b.commits) ? b.commits : null;
+  if (commits && str(b.ref)) {
+    if (b.deleted === true) return [];
+    const branch = str(b.ref)!.replace(/^refs\/heads\//, "");
+    return commits.flatMap((c) => {
+      const o = obj(c);
+      const sha = str(o?.id);
+      if (!o || !sha) return [];
+      const msg = str(o.message) ?? "";
+      return [{
+        ...base,
+        kind: "commit",
+        external_id: `gh:commit:${sha}`,
+        occurred_at: looseIso(o.timestamp) ?? undefined,
+        text: `${repo}@${branch}: ${msg.split("\n")[0]}`,
+        data: compact({ repo, branch, sha, url: str(o.url), author: str(obj(o.author)?.name) }),
+      }];
+    });
+  }
+  const item = obj(b.pull_request) ?? obj(b.issue) ?? obj(b.release);
+  if (!item || !action) return [];
+  const type = b.pull_request ? "pr" : b.issue ? "issue" : "release";
+  const verb = type === "pr" && action === "closed" && item.merged === true ? "merged" : action;
+  const keep: Record<string, string[]> = {
+    pr: ["opened", "merged", "closed", "reopened", "ready_for_review"],
+    issue: ["opened", "closed", "reopened"],
+    release: ["published"],
+  };
+  if (!keep[type]!.includes(verb)) return [];
+  const n = num(item.number);
+  const title = str(item.title) ?? str(item.name) ?? str(item.tag_name) ?? "";
+  const at = looseIso(item.merged_at) ?? looseIso(item.closed_at) ?? looseIso(item.published_at) ?? looseIso(item.updated_at) ?? looseIso(item.created_at);
+  const label = type === "pr" ? `PR #${n}` : type === "issue" ? `issue #${n}` : "release";
+  return [{
+    ...base,
+    kind: `${type}_${verb}`,
+    external_id: `gh:${type}:${repo}:${n ?? str(item.tag_name) ?? title}:${verb}:${at ?? ""}`,
+    occurred_at: at ?? undefined,
+    text: `${repo} ${label} ${verb}: ${title}`,
+    data: compact({ repo, number: n, url: str(item.html_url), user: str(obj(item.user)?.login) ?? str(obj(item.author)?.login) }),
+  }];
+}
+
 export const RECEIVERS = {
   owntracks: { parse: fromOwnTracks, reply: () => [] as unknown },
   overland: { parse: fromOverland, reply: () => ({ result: "ok" }) as unknown },
   "health-auto-export": { parse: fromHealthAutoExport, reply: () => ({ ok: true }) as unknown },
+  github: { parse: fromGitHub, reply: () => ({ ok: true }) as unknown },
 } as const;
