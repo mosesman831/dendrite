@@ -95,3 +95,20 @@ export function dueNudges(store: EventStore, o: PrepOptions & { minutes: number;
       return buildPrep(store, { ...o, now, eventId: e.id });
     });
 }
+
+/** Calendar entries with people that ended within the last `minutes`, not yet asked about — prompts to capture outcomes. */
+export function dueFollowups(store: EventStore, o: { now?: string; minutes: number; sent: Set<string>; maxPrivacy?: PrivacyLevel }): Array<{ id: string; summary: string; entities: string[] }> {
+  const now = o.now ?? new Date().toISOString();
+  const since = new Date(Date.parse(now) - o.minutes * 60_000).toISOString();
+  return store
+    .query({ stream: "calendar", maxPrivacy: o.maxPrivacy ?? "normal", from: new Date(Date.parse(since) - 24 * 3600_000).toISOString(), to: now, order: "asc", limit: 200 })
+    .events.filter((e) => e.kind !== "cancelled" && e.ended_at != null && e.ended_at > since && e.ended_at <= now && e.entities.length > 0 && !o.sent.has(e.id))
+    .map((e) => {
+      o.sent.add(e.id);
+      return { id: e.id, summary: eventSummary(e), entities: e.entities };
+    });
+}
+
+export function renderFollowup(f: { summary: string; entities: string[] }): string {
+  return `How did "${f.summary}" go? Reply with outcomes or follow-ups (with ${f.entities.slice(0, 3).join(", ")}) — they're logged, and "I'll…" becomes an open loop.`;
+}
