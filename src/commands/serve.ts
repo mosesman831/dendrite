@@ -18,7 +18,7 @@ import { computeInsights, renderInsights } from "../events/insights.js";
 import { deriveLiveStays } from "../events/stays.js";
 import { syncCalendar } from "../events/calendars.js";
 import { syncFeed } from "../events/feeds.js";
-import { dueFollowups, dueNudges, renderFollowup, renderPrep } from "../events/prep.js";
+import { dueFollowups, dueNudges, persistedSent, renderFollowup, renderPrep } from "../events/prep.js";
 import { startTelegramBot, runQueueWorker } from "../inputs/telegram.js";
 import {
   scheduleDailyPrompt,
@@ -197,7 +197,7 @@ export async function runServe(opts: { config?: string }): Promise<void> {
     console.log(`  Weekly review: ${config.insights.cron}`);
   }
   if (config.prep?.nudge_minutes) {
-    const sent = new Set<string>();
+    const sent = persistedSent(ctx.index.events, "prep");
     const minutes = config.prep.nudge_minutes;
     const tick = () => {
       try {
@@ -217,7 +217,7 @@ export async function runServe(opts: { config?: string }): Promise<void> {
     console.log(`  Meeting prep: ${minutes} min before each calendar entry`);
   }
   if (config.prep?.followup) {
-    const sent = new Set<string>();
+    const sent = persistedSent(ctx.index.events, "followup");
     const tick = () => {
       try {
         for (const f of dueFollowups(ctx.index.events, { minutes: 30, sent, maxPrivacy: config.prep.include_sensitive ? "sensitive" : "normal" }))

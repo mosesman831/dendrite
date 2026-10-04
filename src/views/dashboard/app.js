@@ -394,7 +394,7 @@ function loadNow() {
         (h.overdue ? '&#9888; ' : '&#10003; ') + escHtml(h.name) + ' <b>' + t + (h.streak > 1 ? ' · ' + h.streak + '&#128293;' : '') + '</b></span>';
     }).join('') + '</div>';
     if (sources.length) html += '<div class="chips">' + sources.map(function(s) {
-      return '<span class="chip' + (s.stale ? ' warn' : '') + '" title="p90 gap ' + s.p90_gap_hours + 'h">' +
+      return '<span class="chip' + (s.stale ? ' warn' : '') + '" title="' + escHtml(s.error ? 'last error: ' + s.error : s.p90_gap_hours != null ? 'p90 gap ' + s.p90_gap_hours + 'h' : 'subscription') + '">' +
         (s.stale ? '&#9888; ' : '&#9679; ') + escHtml(s.source) + ' <b>' + s.hours_since + 'h</b></span>';
     }).join('') + '</div>';
     $('#life-now').innerHTML = html;
