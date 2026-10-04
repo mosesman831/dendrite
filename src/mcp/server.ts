@@ -1,4 +1,5 @@
 import { buildNow, renderNow } from "../events/now.js";
+import { buildPrep, renderPrep } from "../events/prep.js";
 import { habitStatus, renderHabits } from "../events/habits.js";
 import { lastTime, renderLastTime } from "../events/last.js";
 import { renderSources, sourceHealth } from "../events/sources.js";
@@ -223,6 +224,16 @@ export async function startMcpServer(configPath?: string): Promise<void> {
       const tz = config.vault.timezone;
       const n = buildNow(index.events, { timezone: tz, places: config.places, habits: config.habits, maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal" });
       return a.format === "json" ? json(n) : { content: [{ type: "text" as const, text: renderNow(n, tz) }] };
+    },
+  );
+
+  server.tool(
+    "meeting_prep",
+    "Before a meeting: the next (or given) calendar entry, each person/thing in it with when the user last interacted with them, recent history, and open loops owed — so the agent can brief the user.",
+    { event_id: z.string().optional(), format: z.enum(["markdown", "json"]).optional() },
+    async (a) => {
+      const p = buildPrep(index.events, { eventId: a.event_id, aliases: config.aliases, maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal" });
+      return a.format === "json" ? json(p) : { content: [{ type: "text" as const, text: renderPrep(p, config.vault.timezone) }] };
     },
   );
 

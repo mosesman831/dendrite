@@ -10,9 +10,9 @@ const { pruneNoiseEntities } = await dist("events/aliases.js");
 test("pruneNoiseEntities: dry run lists, apply removes only noise (exact case), keeps real names", () => {
   const store = new EventStore(new Database(":memory:"));
   ingestEvents(store, [
-    { stream: "note", kind: "n", text: "x one", entities: ["Deep", "Ines"] },
-    { stream: "note", kind: "n", text: "x two", entities: ["Deep", "Planning"] },
-    { stream: "note", kind: "n", text: "x three", entities: ["deep"] },
+    { stream: "note", kind: "n", text: "x one", occurred_at: "2026-10-01T00:00:00Z", entities: ["Deep", "Ines"] },
+    { stream: "note", kind: "n", text: "x two", occurred_at: "2026-10-02T00:00:00Z", entities: ["Deep", "Planning"] },
+    { stream: "note", kind: "n", text: "x three", occurred_at: "2026-10-03T00:00:00Z", entities: ["deep"] },
   ], DEFAULT_INGEST_OPTIONS);
   assert.deepEqual(pruneNoiseEntities(store), [{ entity: "Deep", events: 2 }, { entity: "Planning", events: 1 }]);
   assert.equal(store.query({ entity: "Deep" }).events.length, 3);
