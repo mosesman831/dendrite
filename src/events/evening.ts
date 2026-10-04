@@ -42,3 +42,9 @@ export function renderEvening(r: EveningRecap): string {
   out.push("", "How was your day? Reply with anything worth remembering — it's logged, and \"I'll…\" becomes an open loop.");
   return out.join("\n");
 }
+
+/** Date of an evening recap message (when the user replies to it), else null. */
+export function parseEveningPrompt(text: string): string | null {
+  const m = /^# Evening — (\d{4}-\d{2}-\d{2})\n[\s\S]*How was your day\?/.exec(text);
+  return m ? m[1] : null;
+}

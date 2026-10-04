@@ -571,7 +571,7 @@ These commands only show normal-privacy events.
 It is deterministic and needs no LLM.
 - HTTP: `GET /v1/brief?date=&format=markdown`. MCP: the `briefing` tool, a good first call for an agent.
 - Set `brief.cron: "0 7 * * *"` and `serve` sends it to your Telegram `allowed_user_ids` every morning. Without Telegram it is logged instead.
-- Set `evening.cron: "0 21 * * *"` for an end-of-day recap. It lists how many events were captured, who was involved, the day's highlights and the loops due tomorrow, then asks "How was your day?". Your reply is logged like any other message, and "I'll…" becomes an open loop. It covers normal-privacy events unless `evening.include_sensitive` is set.
+- Set `evening.cron: "0 21 * * *"` for an end-of-day recap. It lists how many events were captured, who was involved, the day's highlights and the loops due tomorrow, then asks "How was your day?". Your reply is logged like any other message, and "I'll…" becomes an open loop. It covers normal-privacy events unless `evening.include_sensitive` is set. Replying directly to the recap tags your reply `journal` (with `data.journal_date`), so `dendrite recall journal` or `/recall journal` pulls up your entries.
 - Sensitive events are left out unless you set `brief.include_sensitive: true`. Secret events are never included.
 
 ### Open loops

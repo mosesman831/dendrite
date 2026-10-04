@@ -6,7 +6,7 @@ import { dist } from "./helpers.mjs";
 const { EventStore } = await dist("events/store.js");
 const { ingestEvents } = await dist("events/ingest.js");
 const { trackLoops } = await dist("events/loops.js");
-const { buildEvening, renderEvening } = await dist("events/evening.js");
+const { buildEvening, renderEvening, parseEveningPrompt } = await dist("events/evening.js");
 
 test("evening recap: today's counts, people, highlights, loops due tomorrow; privacy", () => {
   const store = new EventStore(new Database(":memory:"));
@@ -27,4 +27,11 @@ test("evening recap: today's counts, people, highlights, loops due tomorrow; pri
   assert.match(md, /How was your day\?/);
   assert.doesNotMatch(md, /Therapy/);
   assert.match(renderEvening(buildEvening(store, "2026-09-01")), /Nothing captured today/);
+});
+
+test("parseEveningPrompt recognises the recap it renders", () => {
+  const md = renderEvening({ date: "2026-10-03", total: 0, streams: [], people: [], highlights: [], due_tomorrow: [] });
+  assert.equal(parseEveningPrompt(md), "2026-10-03");
+  assert.equal(parseEveningPrompt("# Evening — 2026-10-03\nunrelated"), null);
+  assert.equal(parseEveningPrompt("How was your day?"), null);
 });
