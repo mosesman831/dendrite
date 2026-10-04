@@ -1,7 +1,8 @@
+import { listPeople } from "./people.js";
 import type { DendriteConfig } from "../config.js";
 import type { EventStore } from "./store.js";
 import type { PrivacyLevel } from "./types.js";
-import { addDays } from "./time.js";
+import { addDays, dayRange } from "./time.js";
 import { summarizeDay, type TimelineEntry } from "./timeline.js";
 import { listLoops, type OpenLoop } from "./loops.js";
 
@@ -11,6 +12,8 @@ export interface BriefingOptions {
   agendaStreams?: string[];
   soonDays?: number;
   lookbackYears?: number;
+  /** Max drifting people to suggest reconnecting with (0 disables). */
+  reconnect?: number;
 }
 
 export interface Briefing {
@@ -20,6 +23,7 @@ export interface Briefing {
   loops: { overdue: OpenLoop[]; today: OpenLoop[]; soon: OpenLoop[]; undated: number };
   yesterday: { date: string; total: number; streams: Array<{ stream: string; count: number }>; highlights: TimelineEntry[] };
   on_this_day: Array<{ date: string; years_ago: number; highlights: TimelineEntry[] }>;
+  reconnect: Array<{ entity: string; days_since: number; typical_gap_days: number | null }>;
 }
 
 export function briefOptionsFromConfig(config: DendriteConfig): BriefingOptions {
@@ -69,7 +73,15 @@ export function buildBriefing(store: EventStore, date: string, o: BriefingOption
     if (s.total) on_this_day.push({ date: d, years_ago: k, highlights: top(s, 3) });
   }
 
-  return { date, timezone: tz, agenda, loops, yesterday, on_this_day };
+  const n = o.reconnect ?? 3;
+  const reconnect = n
+    ? listPeople(store, { now: dayRange(date, tz).to, maxPrivacy: base.maxPrivacy, limit: 500 })
+        .filter((p) => p.drifting)
+        .sort((a, b) => b.mentions - a.mentions || a.entity.localeCompare(b.entity))
+        .slice(0, n)
+        .map(({ entity, days_since, typical_gap_days }) => ({ entity, days_since, typical_gap_days }))
+    : [];
+  return { date, timezone: tz, agenda, loops, yesterday, on_this_day, reconnect };
 }
 
 const entry = (e: TimelineEntry) => `- ${e.time} [${e.stream}] ${e.summary}`;
@@ -98,5 +110,10 @@ export function renderBriefing(b: Briefing): string {
     out.push("", "## On this day");
     for (const d of b.on_this_day) out.push(`**${d.years_ago} year${d.years_ago === 1 ? "" : "s"} ago (${d.date})**`, ...d.highlights.map(entry));
   }
+  if (b.reconnect.length) {
+    out.push("", "## Reconnect");
+    for (const r of b.reconnect) out.push(`- ${r.entity}: usually every ~${r.typical_gap_days}d, last mentioned ${r.days_since}d ago`);
+  }
+
   return out.join("\n") + "\n";
 }

@@ -450,7 +450,7 @@ Set `insights.cron` (e.g. `"0 18 * * 0"`, Sunday 18:00) and `serve` sends the re
 
 ### People
 
-`dendrite people [--drifting]` lists the people, places and things that come up repeatedly in your log, with mention counts and first and last seen dates. It also works out each one's usual rhythm, and marks it **drifting** when the silence is at least three times that gap (and at least 14 days). For example, "Oscar: every ~7d, silent 36d". It is also available as HTTP `GET /v1/people?drifting=1&format=markdown`, the MCP `people` tool and Telegram `/people`.
+`dendrite people [--drifting]` lists the people, places and things that come up repeatedly in your log, with mention counts and first and last seen dates. It also works out each one's usual rhythm, and marks it **drifting** when the silence is at least three times that gap (and at least 14 days). For example, "Oscar: every ~7d, silent 36d". It is also available as HTTP `GET /v1/people?drifting=1&format=markdown`, the MCP `people` tool and Telegram `/people`. The morning briefing also has a **Reconnect** section listing the top 3 drifting entities.
 
 ### Telegram life commands
 
