@@ -6,6 +6,7 @@ import { dist } from "./helpers.mjs";
 const { EventStore } = await dist("events/store.js");
 const { ingestEvents, DEFAULT_INGEST_OPTIONS } = await dist("events/ingest.js");
 const { listPeople, renderPeople } = await dist("events/people.js");
+const { buildBriefing, renderBriefing } = await dist("events/briefing.js");
 
 test("people: cadence, drifting, privacy", () => {
   const store = new EventStore(new Database(":memory:"));
@@ -32,4 +33,8 @@ test("people: cadence, drifting, privacy", () => {
   assert.match(md, /\*\*Priya\*\*: 4 recent/);
   assert.match(md, /\*\*Oscar\*\*: every ~7d, silent 36d \(since 2026-08-29\)/);
   assert.match(renderPeople([]), /No recurring/);
+  const b = buildBriefing(store, "2026-10-04", { timezone: "UTC" });
+  assert.deepEqual(b.reconnect, [{ entity: "Oscar", days_since: 36, typical_gap_days: 7 }]);
+  assert.match(renderBriefing(b), /## Reconnect\n- Oscar: usually every ~7d, last mentioned 36d ago/);
+  assert.deepEqual(buildBriefing(store, "2026-10-04", { reconnect: 0 }).reconnect, []);
 });
