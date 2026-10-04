@@ -50,11 +50,18 @@ function escHtml(s) {
 }
 
 /* ---------- API helpers ---------- */
+function authHeaders() {
+  var t = localStorage.getItem('dendrite.token');
+  return t ? { Authorization: 'Bearer ' + t } : {};
+}
+
 function api(path, opts) {
   opts = opts || {};
+  var headers = authHeaders();
+  if (opts.body) headers['Content-Type'] = 'application/json';
   return fetch(path, {
     method: opts.method || 'GET',
-    headers: opts.body ? { 'Content-Type': 'application/json' } : undefined,
+    headers: headers,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   }).then(function(r) { return r.json(); });
 }
@@ -64,6 +71,7 @@ function switchTab(name) {
   $$('.tab').forEach(function(t) { t.classList.toggle('active', t.dataset.tab === name); });
   $$('.view').forEach(function(v) { v.classList.toggle('hidden', v.id !== 'view-' + name); });
   if (name === 'triage') loadTriage();
+  if (name === 'life') loadLife();
 }
 
 $$('.tab').forEach(function(t) {
@@ -304,3 +312,160 @@ loadGlance();
 
 /* Poll glance every 30s */
 setInterval(loadGlance, 30000);
+/* ---------- Life (event log) ---------- */
+var life = { date: null, live: null };
+
+function isoDay(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function shiftDay(day, n) {
+  var d = new Date(day + 'T12:00:00');
+  d.setDate(d.getDate() + n);
+  return isoDay(d);
+}
+function v1(path, opts) {
+  return api(path, opts).then(function(r) {
+    if (r && r.error) throw new Error(r.error);
+    return r;
+  });
+}
+function entryHtml(e) {
+  var imp = e.importance >= 0.7 ? ' hi' : '';
+  return '<div class="tl-row' + imp + '"><span class="tl-time">' + escHtml(e.time || '') + '</span>' +
+    '<span class="tl-stream s-' + escHtml(e.stream) + '">' + escHtml(e.stream) + '</span>' +
+    '<span class="tl-text">' + escHtml(e.summary || e.kind) + '</span></div>';
+}
+
+function loadLife() {
+  if (!life.date) life.date = isoDay(new Date());
+  $('#life-date').value = life.date;
+  v1('/v1/timeline?date=' + life.date).then(function(s) {
+    $('#life-count').textContent = s.total ? s.total + ' events' : '';
+    $('#life-stats').innerHTML = (s.streams.length ? s.streams.slice(0, 4) : [{ stream: 'events', count: 0 }]).map(function(st) {
+      return '<div class="stat-card"><span class="label">' + escHtml(st.stream) + '</span><span class="value">' + st.count + '</span></div>';
+    }).join('');
+    $('#life-timeline').innerHTML = s.timeline.length
+      ? s.timeline.map(entryHtml).join('') + (s.truncated ? '<div class="empty-state">…truncated</div>' : '')
+      : '<div class="empty-state">Nothing recorded on this day.</div>';
+    $('#life-entities').innerHTML = s.entities.slice(0, 24).map(function(x) {
+      return '<button class="chip" data-entity="' + escHtml(x.entity) + '">' + escHtml(x.entity) + ' <b>' + x.count + '</b></button>';
+    }).join('') || '<span class="muted">none</span>';
+  }).catch(lifeError);
+  loadLoops();
+  startLive();
+}
+
+function loadLoops() {
+  v1('/v1/loops?status=active&limit=50').then(function(r) {
+    var today = isoDay(new Date());
+    $('#loops-count').textContent = r.loops.length || '';
+    $('#life-loops').innerHTML = r.loops.length ? r.loops.map(function(l) {
+      var due = l.due_date ? '<span class="due' + (l.due_date < today ? ' overdue' : '') + '">' + escHtml(l.due_date) + '</span>' : '';
+      return '<div class="loop" data-id="' + l.id + '"><button class="btn btn-sm loop-done" title="Mark done">&#10003;</button>' +
+        '<span class="loop-text">' + escHtml(l.text) + '</span>' + due +
+        '<button class="btn btn-sm loop-snooze" title="Snooze 1 day">z</button>' +
+        '<button class="btn btn-sm loop-drop" title="Drop">&times;</button></div>';
+    }).join('') : '<div class="empty-state">No open loops. Nice.</div>';
+  }).catch(lifeError);
+}
+
+function setLoop(id, status) {
+  var body = { status: status };
+  if (status === 'snoozed') body.snooze_until = new Date(Date.now() + 864e5).toISOString();
+  v1('/v1/loops/' + encodeURIComponent(id), { method: 'PATCH', body: body }).then(function() {
+    showToast('Loop ' + status, 'success');
+    loadLoops();
+  }).catch(lifeError);
+}
+
+function lifeError(e) {
+  var msg = String(e && e.message || e);
+  showToast(/unauthori|forbidden|401|403/i.test(msg) ? 'API key needed — click Key' : msg, 'error');
+}
+
+function runRecall(q) {
+  var out = $('#recall-out');
+  out.classList.remove('hidden');
+  out.textContent = 'Recalling…';
+  fetch('/v1/recall?format=markdown&limit=25&q=' + encodeURIComponent(q), { headers: authHeaders() })
+    .then(function(r) { return r.text().then(function(t) { if (!r.ok) throw new Error(t); return t; }); })
+    .then(function(t) { out.textContent = t || 'No matches.'; })
+    .catch(function(e) { out.textContent = String(e.message || e); });
+}
+
+/* SSE over fetch so the Authorization header can be sent (EventSource can't). */
+function startLive() {
+  if (life.live) return;
+  var ctrl = new AbortController();
+  life.live = ctrl;
+  var dot = $('#live-status');
+  fetch('/v1/stream', { headers: authHeaders(), signal: ctrl.signal }).then(function(r) {
+    if (!r.ok || !r.body) throw new Error('stream ' + r.status);
+    dot.className = 'live-dot on';
+    var reader = r.body.getReader(), dec = new TextDecoder(), buf = '';
+    function pump() {
+      return reader.read().then(function(x) {
+        if (x.done) throw new Error('closed');
+        buf += dec.decode(x.value, { stream: true });
+        var parts = buf.split('\n\n');
+        buf = parts.pop();
+        parts.forEach(function(block) {
+          var data = block.split('\n').filter(function(l) { return l.indexOf('data:') === 0; })
+            .map(function(l) { return l.slice(5).trim(); }).join('');
+          if (!data) return;
+          try { onLive(JSON.parse(data)); } catch (_) { /* heartbeat or partial */ }
+        });
+        return pump();
+      });
+    }
+    return pump();
+  }).catch(function() {
+    dot.className = 'live-dot';
+    life.live = null;
+    if (!ctrl.signal.aborted) setTimeout(function() { if (!$('#view-life').classList.contains('hidden')) startLive(); }, 5000);
+  });
+}
+
+function onLive(e) {
+  if (!e || !e.id) return;
+  var t = new Date(e.occurred_at);
+  var feed = $('#live-feed');
+  feed.insertAdjacentHTML('afterbegin', entryHtml({
+    time: String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0'),
+    stream: e.stream, kind: e.kind, summary: e.text || e.kind, importance: e.importance,
+  }));
+  while (feed.children.length > 50) feed.removeChild(feed.lastChild);
+  if (life.date === isoDay(t)) loadLife();
+}
+
+function lifeGo(day) { life.date = day; loadLife(); }
+$('#life-prev').addEventListener('click', function() { lifeGo(shiftDay(life.date, -1)); });
+$('#life-next').addEventListener('click', function() { lifeGo(shiftDay(life.date, 1)); });
+$('#life-today').addEventListener('click', function() { lifeGo(isoDay(new Date())); });
+$('#life-date').addEventListener('change', function() { if (this.value) lifeGo(this.value); });
+$('#life-token').addEventListener('click', function() {
+  var cur = localStorage.getItem('dendrite.token') || '';
+  var t = prompt('API key (stored in this browser only; blank to clear):', cur);
+  if (t === null) return;
+  if (t) localStorage.setItem('dendrite.token', t.trim()); else localStorage.removeItem('dendrite.token');
+  if (life.live) { life.live.abort(); life.live = null; }
+  loadLife();
+});
+$('#recall-form').addEventListener('submit', function(ev) {
+  ev.preventDefault();
+  var q = $('#recall-q').value.trim();
+  if (q) runRecall(q);
+});
+$('#life-entities').addEventListener('click', function(ev) {
+  var b = ev.target.closest('.chip');
+  if (!b) return;
+  $('#recall-q').value = b.dataset.entity;
+  runRecall(b.dataset.entity);
+});
+$('#life-loops').addEventListener('click', function(ev) {
+  var row = ev.target.closest('.loop');
+  if (!row) return;
+  if (ev.target.closest('.loop-done')) setLoop(row.dataset.id, 'done');
+  else if (ev.target.closest('.loop-snooze')) setLoop(row.dataset.id, 'snoozed');
+  else if (ev.target.closest('.loop-drop')) setLoop(row.dataset.id, 'dropped');
+});

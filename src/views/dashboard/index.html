@@ -14,6 +14,7 @@
       <div class="tabs">
         <button class="tab active" data-tab="glance">Quick Glance</button>
         <button class="tab" data-tab="triage">Triage</button>
+        <button class="tab" data-tab="life">Life</button>
       </div>
       <div class="logo">🧠 Dendrite</div>
     </header>
@@ -36,6 +37,38 @@
         <h2 class="section-header">RECENT CAPTURES</h2>
         <div id="recent-captures"></div>
         <button class="btn refresh-btn" id="refresh-inbox">↻ Refresh inbox</button>
+      </section>
+      <!-- Life: event log -->
+      <section id="view-life" class="view hidden">
+        <div class="life-bar">
+          <button class="btn" id="life-prev" title="Previous day">&larr;</button>
+          <input type="date" id="life-date" class="input">
+          <button class="btn" id="life-next" title="Next day">&rarr;</button>
+          <button class="btn" id="life-today">Today</button>
+          <span class="spacer"></span>
+          <button class="btn" id="life-token" title="API key for /v1 endpoints">&#128273; Key</button>
+        </div>
+        <div class="stats-row" id="life-stats"></div>
+        <div class="life-grid">
+          <div>
+            <h2 class="section-header">TIMELINE <span id="life-count" class="count-badge"></span></h2>
+            <div id="life-timeline" class="timeline"></div>
+          </div>
+          <div>
+            <h2 class="section-header">OPEN LOOPS <span id="loops-count" class="count-badge"></span></h2>
+            <div id="life-loops"></div>
+            <h2 class="section-header">PEOPLE &amp; THINGS</h2>
+            <div id="life-entities" class="chips"></div>
+          </div>
+        </div>
+        <h2 class="section-header">RECALL</h2>
+        <form id="recall-form" class="life-bar">
+          <input type="search" id="recall-q" class="input grow" placeholder="what happened with…  (searches your whole log)">
+          <button class="btn btn-approve" type="submit">Recall</button>
+        </form>
+        <pre id="recall-out" class="recall-out hidden"></pre>
+        <h2 class="section-header">LIVE <span id="live-status" class="live-dot"></span></h2>
+        <div id="live-feed" class="timeline"></div>
       </section>
     </main>
 

@@ -27,9 +27,9 @@ export interface OpenLoop {
 }
 
 const CHECKBOX = /^\s*[-*]\s*\[ \]\s*(.{3,})$/gm;
-const MARKER = /\b(?:todo|to-do|action item|task)\s*[:\-–]\s*([^\n.!?]{3,})/gi;
+const MARKER = /\b(?:todo|to-do|action item|task)\s*[:\-–]\s*((?:[^\n.!?]|[.!?](?=\S)){3,})/gi;
 const PHRASE =
-  /\b(remind me to|don'?t forget to|i need to|i have to|i must|i should|i'?ll|i will|gotta|need to|follow up (?:with|on))\s+([^\n.!?;]{3,})/gi;
+  /\b(remind me to|don'?t forget to|i need to|i have to|i must|i should|i'?ll|i will|gotta|need to|follow up (?:with|on))\s+((?:[^\n.!?;]|[.!?](?=\S)){3,})/gi;
 // "I'll be there" / "I will see" — states, not commitments.
 const NON_COMMIT = /^(be|see|let you know|try|probably|never|always|just|have a look)\b/i;
 const DONE_WORD = /\b(done|finished|completed|did|sent|booked|paid|submitted|called|emailed|fixed|shipped)\b/i;
