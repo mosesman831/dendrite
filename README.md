@@ -435,6 +435,19 @@ MCP: `recall` (markdown context pack, ready to drop into an agent prompt) and `e
 
 If API keys are configured, click **Key** to save one in this browser (localStorage). It's sent as a Bearer header, including on the live stream, which uses fetch rather than EventSource so the header can be sent.
 
+### Insights
+
+`dendrite insights [--days 7] [--to DATE] [--sensitive]` compares a window with the period of the same length just before it:
+- **Streams:** event counts per stream.
+- **People, places & things:** most-mentioned entities, plus entities that are new this period or that you've stopped mentioning.
+- **Metrics:** averages of numeric `data` fields, e.g. `health/steps.steps: 8,500 (▼ 15% from 10,000)`.
+- **Rhythm:** busiest day, most active hour, and days with nothing captured.
+- **Follow-through:** loops opened, done and dropped, and the share completed.
+
+It is deterministic and needs no LLM. HTTP: `GET /v1/insights?days=&to=&format=markdown`. MCP: the `insights` tool.
+
+Only normal-privacy events are counted unless you ask for sensitive ones. Secret events and trigger-derived events are never counted.
+
 ### Telegram life commands
 
 Every text you send the bot is also written to the event log (stream `note`, source `telegram`). That makes it searchable, and commitments in it become open loops. Re-delivered messages aren't logged twice. Turn this off with `inputs.telegram.log_events: false`.

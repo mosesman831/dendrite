@@ -1,5 +1,6 @@
 import express, { type Express, type Request, type Response } from "express";
 import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
+import { computeInsights, renderInsights } from "../events/insights.js";
 import { statSync } from "node:fs";
 import type { DendriteConfig } from "../config.js";
 import type { DendriteIndex } from "../pipeline/index.js";
@@ -251,6 +252,19 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
     const b = buildBriefing(store, date, briefOptionsFromConfig(config));
     if (req.query.format === "markdown") res.type("text/markdown").send(renderBriefing(b));
     else res.json(b);
+  });
+
+  app.get("/v1/insights", (req, res) => {
+    if (!guard(req, res)) return;
+    const to = str(req.query.to) ?? localDate(new Date().toISOString(), config.vault.timezone);
+    const days = Number(str(req.query.days) ?? 7);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(to) || !Number.isFinite(days) || days < 1 || days > 366) {
+      res.status(400).json({ error: "to must be YYYY-MM-DD and days 1..366" });
+      return;
+    }
+    const i = computeInsights(store, { to, days, timezone: config.vault.timezone, maxPrivacy: req.query.sensitive === "1" ? "sensitive" : "normal" });
+    if (req.query.format === "markdown") res.type("text/markdown").send(renderInsights(i));
+    else res.json(i);
   });
 
   app.get("/v1/loops", (req, res) => {

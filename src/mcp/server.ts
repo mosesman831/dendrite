@@ -12,6 +12,7 @@ import matter from "gray-matter";
 import { entityProfile } from "../events/recall.js";
 import { listLoops, renderLoops, setLoopStatus } from "../events/loops.js";
 import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
+import { computeInsights, renderInsights } from "../events/insights.js";
 import { eventEmbeddingsConfig, recallHybrid } from "../events/semantic.js";
 import { ingestEvents, ingestOptionsFromConfig } from "../events/ingest.js";
 import { normalizeTime, localDate } from "../events/time.js";
@@ -194,6 +195,21 @@ export async function startMcpServer(configPath?: string): Promise<void> {
         maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal",
       });
       return a.format === "json" ? json(b) : { content: [{ type: "text" as const, text: renderBriefing(b) }] };
+    },
+  );
+
+  server.tool(
+    "insights",
+    "Patterns in the user's life log vs the previous period of equal length: activity by stream, most-mentioned people/places (new and faded), numeric metric averages, daily rhythm and quiet days, and loop follow-through.",
+    { days: z.number().int().min(1).max(366).optional(), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), format: z.enum(["markdown", "json"]).optional() },
+    async (a) => {
+      const i = computeInsights(index.events, {
+        to: a.to ?? localDate(new Date().toISOString(), config.vault.timezone),
+        days: a.days ?? 7,
+        timezone: config.vault.timezone,
+        maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal",
+      });
+      return a.format === "json" ? json(i) : { content: [{ type: "text" as const, text: renderInsights(i) }] };
     },
   );
 
