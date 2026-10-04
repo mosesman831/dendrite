@@ -15,6 +15,8 @@ import { undoCapture, resolveUndoTarget } from "../pipeline/remove.js";
 import { previewSort, runSort, formatSortPreviewTelegram } from "../commands/sort.js";
 import { answerQuestion } from "../pipeline/answer.js";
 import type { Context } from "grammy";
+import { LIFE_COMMANDS, lifeCommand, logTelegramMessage } from "./telegram-life.js";
+import { eventEmbeddingsConfig } from "../events/semantic.js";
 
 const pendingSorts = new Map<number, { scope: "all" | "inbox" | "imports"; at: number }>();
 
@@ -44,7 +46,7 @@ export async function startTelegramBot(
 
   const bot = new Bot(token);
 
-  await bot.api.setMyCommands([...TELEGRAM_COMMANDS]);
+  await bot.api.setMyCommands([...TELEGRAM_COMMANDS, ...LIFE_COMMANDS]);
 
   const allowed = new Set(config.inputs.telegram.allowed_user_ids);
 
@@ -57,7 +59,7 @@ export async function startTelegramBot(
 
   bot.command("help", async (c) => {
     if (!isAllowed(c.from?.id, allowed)) return;
-    const lines = TELEGRAM_COMMANDS.map((cmd) => `/${cmd.command} — ${cmd.description}`);
+    const lines = [...TELEGRAM_COMMANDS, ...LIFE_COMMANDS].map((cmd) => `/${cmd.command} — ${cmd.description}`);
     await c.reply(["Dendrite commands:", "", ...lines].join("\n"));
   });
 
@@ -139,10 +141,29 @@ export async function startTelegramBot(
     }
   });
 
+  const emb = eventEmbeddingsConfig(config, ctx.llm.primary.baseURL);
+  for (const { command } of LIFE_COMMANDS)
+    bot.command(command, async (c) => {
+      if (!isAllowed(c.from?.id, allowed)) return;
+      try {
+        await c.reply(await lifeCommand({ store: ctx.index.events, config, emb }, command, (c.match ?? "").toString()));
+      } catch (err) {
+        await c.reply(`/${command} failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    });
+
   bot.on("message:text", async (c) => {
     if (!isAllowed(c.from?.id, allowed)) return;
     const text = c.message.text;
     if (!text || text.startsWith("/")) return;
+
+    if (config.inputs.telegram.log_events) {
+      try {
+        logTelegramMessage(ctx.index.events, config, { text, chatId: c.chat.id, messageId: c.message.message_id, date: c.message.date });
+      } catch (err) {
+        console.error("telegram event-log error:", err instanceof Error ? err.message : String(err));
+      }
+    }
 
     const dump: Dump = {
       id: `tg-${c.message.message_id}`,
