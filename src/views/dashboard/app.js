@@ -352,6 +352,7 @@ function loadLife() {
     }).join('') || '<span class="muted">none</span>';
   }).catch(lifeError);
   loadLoops();
+  loadNow();
   startLive();
 }
 
@@ -366,6 +367,24 @@ function loadLoops() {
         '<button class="btn btn-sm loop-snooze" title="Snooze 1 day">z</button>' +
         '<button class="btn btn-sm loop-drop" title="Drop">&times;</button></div>';
     }).join('') : '<div class="empty-state">No open loops. Nice.</div>';
+  }).catch(lifeError);
+}
+
+function loadNow() {
+  Promise.all([v1('/v1/now'), v1('/v1/habits'), v1('/v1/sources')]).then(function(r) {
+    var n = r[0], habits = r[1].habits || [], sources = (r[2].sources || []).filter(function(s) { return s.continuous; });
+    var where = n.where ? (n.where.place || n.where.lat.toFixed(4) + ', ' + n.where.lon.toFixed(4)) : null;
+    var html = '<div class="now-row"><span class="muted">Where</span> ' + (where ? '<b>' + escHtml(where) + '</b>' : '<span class="muted">unknown</span>') + '</div>';
+    if (habits.length) html += '<div class="chips">' + habits.map(function(h) {
+      var t = h.last ? (h.days_ago === 0 ? 'today' : h.days_ago + 'd') : 'never';
+      return '<span class="chip' + (h.overdue ? ' warn' : '') + '" title="every ' + h.every_days + 'd · ' + h.done_30d + '× in 30d">' +
+        (h.overdue ? '&#9888; ' : '&#10003; ') + escHtml(h.name) + ' <b>' + t + (h.streak > 1 ? ' · ' + h.streak + '&#128293;' : '') + '</b></span>';
+    }).join('') + '</div>';
+    if (sources.length) html += '<div class="chips">' + sources.map(function(s) {
+      return '<span class="chip' + (s.stale ? ' warn' : '') + '" title="p90 gap ' + s.p90_gap_hours + 'h">' +
+        (s.stale ? '&#9888; ' : '&#9679; ') + escHtml(s.source) + ' <b>' + s.hours_since + 'h</b></span>';
+    }).join('') + '</div>';
+    $('#life-now').innerHTML = html;
   }).catch(lifeError);
 }
 
