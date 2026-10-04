@@ -1,3 +1,4 @@
+import { sourceHealth } from "./sources.js";
 import { listPeople } from "./people.js";
 import type { DendriteConfig } from "../config.js";
 import type { EventStore } from "./store.js";
@@ -14,6 +15,9 @@ export interface BriefingOptions {
   lookbackYears?: number;
   /** Max drifting people to suggest reconnecting with (0 disables). */
   reconnect?: number;
+  /** Warn about continuous sources that went silent (default true). */
+  captureWarnings?: boolean;
+  now?: string;
 }
 
 export interface Briefing {
@@ -24,6 +28,7 @@ export interface Briefing {
   yesterday: { date: string; total: number; streams: Array<{ stream: string; count: number }>; highlights: TimelineEntry[] };
   on_this_day: Array<{ date: string; years_ago: number; highlights: TimelineEntry[] }>;
   reconnect: Array<{ entity: string; days_since: number; typical_gap_days: number | null }>;
+  stale_sources: Array<{ source: string; hours_since: number }>;
 }
 
 export function briefOptionsFromConfig(config: DendriteConfig): BriefingOptions {
@@ -81,7 +86,13 @@ export function buildBriefing(store: EventStore, date: string, o: BriefingOption
         .slice(0, n)
         .map(({ entity, days_since, typical_gap_days }) => ({ entity, days_since, typical_gap_days }))
     : [];
-  return { date, timezone: tz, agenda, loops, yesterday, on_this_day, reconnect };
+  const stale_sources =
+    o.captureWarnings === false
+      ? []
+      : sourceHealth(store, { now: o.now })
+          .filter((s) => s.stale)
+          .map(({ source, hours_since }) => ({ source, hours_since }));
+  return { date, timezone: tz, agenda, loops, yesterday, on_this_day, reconnect, stale_sources };
 }
 
 const entry = (e: TimelineEntry) => `- ${e.time} [${e.stream}] ${e.summary}`;
@@ -113,6 +124,10 @@ export function renderBriefing(b: Briefing): string {
   if (b.reconnect.length) {
     out.push("", "## Reconnect");
     for (const r of b.reconnect) out.push(`- ${r.entity}: usually every ~${r.typical_gap_days}d, last mentioned ${r.days_since}d ago`);
+  }
+  if (b.stale_sources?.length) {
+    out.push("", "## Capture gaps");
+    for (const s of b.stale_sources) out.push(`- ${s.source}: nothing received for ${Math.round(s.hours_since)}h — check the device/app`);
   }
 
   return out.join("\n") + "\n";

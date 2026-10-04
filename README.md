@@ -461,6 +461,10 @@ Any event with coordinates inside a place's radius gets the place as an entity a
 
 While `serve` runs, it turns streamed location points into `location/stay` events every `stays.interval_min` minutes (default 15). Stays are named after a configured place when one matches, e.g. "At Home for ~40 min". A stay is only written once you've left it, so the event never changes after it's created. A stay is at least as private as the points it was built from. Configure it under `stays: { live, interval_min, lookback_hours, radius_m, min_minutes }`.
 
+### Source health
+
+`dendrite sources` (or `GET /v1/sources`) shows, for each ingest source, how many events it sent, on how many days, and when it last sent one. Times are based on when Dendrite received the data, so a backfilled import doesn't look like a live feed. A source that sends data on at least 3 days counts as continuous. A continuous source is marked **stale** once it has been silent for more than 3× its usual (p90) gap between uploads, with a minimum of 6 h. Stale sources also appear in the morning briefing under "Capture gaps", so a dead phone app or a revoked token gets noticed within a day instead of after a month of missing data.
+
 ### Insights
 
 `dendrite insights [--days 7] [--to DATE] [--sensitive]` compares a window with the period of the same length just before it:
