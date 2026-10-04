@@ -179,7 +179,7 @@ function fmtNum(n: number): string {
 }
 
 /** Deterministic Obsidian-friendly markdown digest. */
-export function renderDigestMarkdown(s: RangeSummary): string {
+export function renderDigestMarkdown(s: RangeSummary, narrativeMd?: string): string {
   const fm = [
     "---",
     `type: digest`,
@@ -191,6 +191,7 @@ export function renderDigestMarkdown(s: RangeSummary): string {
     `event_count: ${s.total}`,
     `streams: [${s.streams.map((x) => x.stream).join(", ")}]`,
     `generated_by: dendrite`,
+    ...(narrativeMd ? ["narrated: true"] : []),
     "---",
     "",
   ];
@@ -200,6 +201,7 @@ export function renderDigestMarkdown(s: RangeSummary): string {
     return out.join("\n");
   }
   out.push(`**${s.total} events** across ${s.streams.length} stream(s).`, "");
+  if (narrativeMd) out.push(narrativeMd);
   if (s.highlights.length) {
     out.push("## Highlights", "");
     for (const h of s.highlights) out.push(`- ${s.period === "day" ? h.time : `${h.date} ${h.time}`} · *${h.stream}* — ${h.summary}`);

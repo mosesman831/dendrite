@@ -141,6 +141,11 @@ export const ConfigSchema = z.object({
     .object({
       folder: z.string().default("journal/digests"),
       write_empty: z.boolean().default(false),
+      narrate: z.boolean().default(false),
+      narrate_sensitive: z.boolean().default(false),
+      max_prompt_events: z.number().int().min(10).max(2000).default(300),
+      /** If set, `serve` writes yesterday's digest on this schedule (e.g. "15 0 * * *"). */
+      cron: z.string().default(""),
     })
     .default({}),
   retention: z

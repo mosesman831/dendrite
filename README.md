@@ -395,6 +395,17 @@ dendrite import export.ndjson            # raw events
 
 Drop folder: set `inputs.drop_folder.enabled: true` and `dendrite serve` will import any file dropped into `inputs.drop_folder.path` (json/ndjson/ics/gpx/csv) every `poll_seconds`. Imported files move to `processed/`; files that fail move to `failed/` with an `.error.txt` next to them.
 
+### Narrated digests
+
+`dendrite digest yesterday --narrate` adds an LLM-written **Summary**, **Open loops** (`- [ ]` tasks) and **Notable** section on top of the deterministic digest. If the LLM fails, the deterministic digest is still written. Only `normal`-privacy events are sent to the LLM unless `digest.narrate_sensitive: true`. Event text is framed as data, so instructions embedded in it are ignored.
+
+```yaml
+digest:
+  narrate: true              # default for `dendrite digest` (override with --no-narrate)
+  cron: "15 0 * * *"         # `serve` writes yesterday's digest every night
+  max_prompt_events: 300     # most-important events sent to the LLM
+```
+
 ### Recall (second-brain queries)
 
 ```bash
