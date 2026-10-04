@@ -1,6 +1,7 @@
 import { loadConfig } from "../config.js";
 import { DendriteIndex } from "../pipeline/index.js";
-import { recall, entityProfile } from "../events/recall.js";
+import { entityProfile } from "../events/recall.js";
+import { embedPendingEvents, eventEmbeddingsConfig, providerEmbedFn, recallHybrid } from "../events/semantic.js";
 import { localDate } from "../events/time.js";
 import { eventSummary } from "../events/timeline.js";
 
@@ -17,12 +18,13 @@ export async function runRecall(
     limit?: string;
     context?: string;
     json?: boolean;
+    semantic?: boolean;
   },
 ): Promise<void> {
-  const { config } = loadConfig(opts.config);
+  const { config, llm } = loadConfig(opts.config);
   const index = new DendriteIndex(config.index.db_path);
   try {
-    const pack = recall(index.events, {
+    const pack = await recallHybrid(index.events, {
       q: query,
       entity: opts.entity,
       at: opts.at,
@@ -33,7 +35,7 @@ export async function runRecall(
       limit: opts.limit ? Number(opts.limit) : undefined,
       contextMin: opts.context !== undefined ? Number(opts.context) : undefined,
       timezone: config.vault.timezone,
-    });
+    }, eventEmbeddingsConfig(config, llm.primary.baseURL), { semantic: opts.semantic, log: (m) => console.error(m) });
     console.log(opts.json ? JSON.stringify(pack, null, 2) : pack.markdown);
   } finally {
     index.close();
@@ -60,6 +62,29 @@ export async function runWho(name: string, opts: { config?: string; json?: boole
     if (p.related.length) console.log(`Often with: ${p.related.map((r) => `${r.entity} (${r.count})`).join(", ")}`);
     console.log("\nRecent:");
     for (const e of p.recent) console.log(`- ${localDate(e.occurred_at, tz)} [${e.stream}] ${eventSummary(e, 160)}`);
+  } finally {
+    index.close();
+  }
+}
+
+export async function runEmbedEvents(opts: { config?: string; max?: string; json?: boolean }): Promise<void> {
+  const { config, llm } = loadConfig(opts.config);
+  const emb = eventEmbeddingsConfig(config, llm.primary.baseURL);
+  if (!emb) {
+    console.error("Event embeddings disabled. Set index.embeddings.enabled: true (and index.embeddings.events: true).");
+    process.exitCode = 1;
+    return;
+  }
+  const index = new DendriteIndex(config.index.db_path);
+  try {
+    const r = await embedPendingEvents(index.events, {
+      model: emb.model,
+      embed: providerEmbedFn(emb),
+      includeSensitive: config.index.embeddings.events_include_sensitive,
+      max: opts.max ? Number(opts.max) : 50_000,
+      log: (m) => console.error(m),
+    });
+    console.log(opts.json ? JSON.stringify(r) : `Embedded ${r.embedded} event(s) with ${emb.model}; ${r.failed} failed, ${r.remaining} remaining, ${r.orphans} orphan vector(s) removed.`);
   } finally {
     index.close();
   }

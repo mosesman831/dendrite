@@ -84,6 +84,10 @@ export const ConfigSchema = z.object({
         model: z.string().default("text-embedding-3-small"),
         apiKeyEnv: z.string().default("OPENAI_API_KEY"),
         hybrid_weight: z.number().min(0).max(1).default(0.4),
+        /** Also embed event-log text for semantic recall (normal-privacy only unless events_include_sensitive). */
+        events: z.boolean().default(true),
+        events_include_sensitive: z.boolean().default(false),
+        events_cron: z.string().default("*/10 * * * *"),
       })
       .default({}),
   }),

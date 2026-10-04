@@ -19,6 +19,11 @@ export interface RecallOptions {
   contextMin?: number;
   maxPrivacy?: PrivacyLevel;
   timezone?: string;
+  /** Query embedding: blends cosine matches with FTS hits (hybrid recall). */
+  vector?: number[];
+  semanticModel?: string;
+  /** 0 = FTS only, 1 = vectors only (default 0.5). */
+  semanticWeight?: number;
 }
 
 export interface RecallHit {
@@ -89,9 +94,36 @@ export function recall(store: EventStore, o: RecallOptions): RecallPack {
       maxPrivacy,
       limit: Math.min(limit * 5, 500),
     });
-    const ranked = [...page.events]
-      .sort((a, b) => b.importance - a.importance || b.occurred_at.localeCompare(a.occurred_at))
-      .slice(0, limit);
+    let ranked: EventRecord[];
+    if (o.vector && o.semanticModel && o.q) {
+      const w = o.semanticWeight ?? 0.5;
+      const sem = store.semanticSearch(o.vector, {
+        model: o.semanticModel,
+        from: from ?? undefined,
+        to: to ?? undefined,
+        stream: o.stream,
+        maxPrivacy,
+        limit: limit * 3,
+      });
+      const want = o.entity?.toLowerCase();
+      const pool = new Map<string, { event: EventRecord; fts: number; cos: number }>();
+      for (const e of page.events) pool.set(e.id, { event: e, fts: 1, cos: 0 });
+      for (const { event, score } of sem) {
+        if (want && !event.entities.some((x) => x.toLowerCase() === want)) continue;
+        const cur = pool.get(event.id);
+        if (cur) cur.cos = score;
+        else pool.set(event.id, { event, fts: 0, cos: score });
+      }
+      ranked = [...pool.values()]
+        .map((x) => ({ e: x.event, s: w * x.cos + (1 - w) * x.fts + 0.05 * x.event.importance }))
+        .sort((a, b) => b.s - a.s || b.e.occurred_at.localeCompare(a.e.occurred_at))
+        .slice(0, limit)
+        .map((x) => x.e);
+    } else {
+      ranked = [...page.events]
+        .sort((a, b) => b.importance - a.importance || b.occurred_at.localeCompare(a.occurred_at))
+        .slice(0, limit);
+    }
     const cm = (o.contextMin ?? 30) * MIN;
     hits = ranked
       .map((event) => ({
@@ -134,7 +166,7 @@ export function recall(store: EventStore, o: RecallOptions): RecallPack {
 
   return {
     mode,
-    query: { q: o.q, entity: o.entity, at: o.at, stream: o.stream },
+    query: { q: o.q, entity: o.entity, at: o.at, stream: o.stream, semantic: Boolean(o.vector && o.semanticModel && o.q && !o.at) },
     range: { from, to },
     hits,
     entities,
