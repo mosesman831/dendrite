@@ -71,7 +71,7 @@ program
 
 program
   .command("import <path>")
-  .description("Bulk-import history: json, ndjson, ics, gpx, csv, Apple Health export.xml, Google Takeout location, or a git repo dir")
+  .description("Bulk-import history: json, ndjson, ics, gpx, csv, Apple Health export.xml, Google Takeout location, browser history (Chrome/Firefox/Safari), or a git repo dir")
   .option("-c, --config <path>", "Config file path")
   .option("-f, --format <fmt>", "json|ndjson|ics|gpx|csv|git (default: auto-detect)")
   .option("-s, --stream <name>", "Override stream")
@@ -79,7 +79,7 @@ program
   .option("--source <name>", "Override source")
   .option("--limit <n>", "git: max commits")
   .option("--stays", "gpx/takeout: also derive location/stay events from the point trail")
-  .option("--since <time>", "apple-health: only records at/after this time")
+  .option("--since <time>", "apple-health/browser: only records at/after this time")
   .option("--types <list>", "apple-health: comma-separated HK types or kinds (e.g. step_count,heart_rate)")
   .option("--json", "Machine-readable output")
   .action(runImport);

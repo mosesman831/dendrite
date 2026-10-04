@@ -1,4 +1,5 @@
 import { closeSync, existsSync, openSync, readFileSync, readSync, statSync } from "node:fs";
+import { readBrowserHistory } from "../events/importers-browser.js";
 import { staysFromItems, streamAppleHealth } from "../events/importers-life.js";
 import { join } from "node:path";
 import { loadConfig } from "../config.js";
@@ -47,6 +48,10 @@ export async function importPath(
     const sniff = readHead(path);
     format = (opts.format as ImportFormat) ?? detectFormat(path, sniff);
     if (format === "apple-health") return importAppleHealth(store, path, ingestOpts, opts);
+    if (format === "browser-history") {
+      parsed = readBrowserHistory(path, opts);
+      return ingestParsed(store, path, format, parsed, ingestOpts);
+    }
     const content = readFileSync(path, "utf8");
     if (!opts.format && detectFormat(path, content) !== format) format = detectFormat(path, content);
     if (!IMPORT_FORMATS.includes(format)) throw new Error(`unknown format ${format}; use ${IMPORT_FORMATS.join("|")}`);
@@ -55,6 +60,17 @@ export async function importPath(
       parsed.items.push(...staysFromItems(parsed.items, opts.source ?? format));
     }
   }
+  return ingestParsed(store, path, format, parsed, ingestOpts);
+}
+
+
+function ingestParsed(
+  store: EventStore,
+  path: string,
+  format: ImportFormat,
+  parsed: { items: unknown[]; errors: Array<{ index: number; error: string }> },
+  ingestOpts: IngestOptions,
+): ImportSummary {
   const summary: ImportSummary = {
     file: path,
     format,

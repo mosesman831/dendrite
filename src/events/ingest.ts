@@ -116,6 +116,7 @@ export function prepareEvent(raw: unknown, opts: IngestOptions = DEFAULT_INGEST_
 /** Ingest a batch of raw events. Never throws for per-event errors; reports them instead. */
 export function ingestEvents(store: EventStore, raws: unknown[], opts: IngestOptions = DEFAULT_INGEST_OPTIONS): IngestReport {
   const report: IngestReport = { accepted: 0, duplicates: 0, rejected: [], ids: [] };
+  const fresh: EventRecord[] = [];
   if (raws.length > opts.maxBatch) {
     report.rejected.push({ index: -1, error: `batch exceeds max_batch (${opts.maxBatch})` });
     return report;
@@ -128,6 +129,7 @@ export function ingestEvents(store: EventStore, raws: unknown[], opts: IngestOpt
         else {
           report.accepted++;
           report.ids.push(rec.id);
+          fresh.push({ ...rec, distilled_at: null, note_path: null });
         }
       } catch (err) {
         report.rejected.push({ index, error: err instanceof Error ? err.message : String(err) });
@@ -135,6 +137,7 @@ export function ingestEvents(store: EventStore, raws: unknown[], opts: IngestOpt
     });
   });
   tx();
+  store.bus.publish(fresh);
   return report;
 }
 
