@@ -96,6 +96,17 @@ const STOP_CAPS = new Set([
   "Don", "Didn", "Can", "Will", "Should", "Must", "Let", "Maybe", "Still", "Back", "Left", "Arrived", "Started",
 ]);
 
+/** Ordinary words that are only capitalised because they start a sentence/calendar title. */
+const START_ONLY = new Set([
+  "Deep", "Focus", "Work", "Quick", "New", "Big", "Long", "Short", "Early", "Late", "First", "Last", "Next",
+  "Team", "Project", "Review", "Planning", "Sync", "Standup", "Retro", "Busy", "Free", "Gym", "Run", "Walk",
+  "Read", "Write", "Fix", "Add", "Update", "Check", "Buy", "Pick", "Pay", "Book", "Email", "Text", "Ask",
+  "Try", "Make", "Take", "Get", "Go", "Come", "Feeling", "Tired", "Happy", "Sick", "Some", "All", "Every",
+  "Each", "Very", "Really", "Not", "Never", "Always", "Here", "There", "Out", "Off", "Up", "Down", "Lots",
+  "Bought", "Paid", "Took", "Made", "Read", "Wrote", "Fixed", "Shipped", "Merged", "Moved", "Cancelled",
+  "Interview", "Call", "Doctor", "Dentist", "Haircut", "Flight", "Train", "Drive", "Dinner", "Party",
+]);
+
 /** Cheap deterministic entity extraction: @handles, #tags, URLs → domains, proper-noun runs. */
 export function extractEntities(text: string): { entities: string[]; tags: string[] } {
   const entities = new Set<string>();
@@ -120,7 +131,8 @@ export function extractEntities(text: string): { entities: string[]; tags: strin
     words.forEach((raw, i) => {
       const w = raw.replace(/^[("'[]+|[)"'\],.;:!?]+$/g, "");
       const isCap = /^\p{Lu}[\p{L}\p{N}'&.-]*$/u.test(w) && !/^[\p{Lu}]{1}$/u.test(w);
-      if (isCap && !(i === 0 && STOP_CAPS.has(w))) run.push(w);
+      const sentenceWord = i === 0 && (STOP_CAPS.has(w) || START_ONLY.has(w) || (w.length >= 6 && /^\p{Lu}\p{Ll}+(?:ing|ly)$/u.test(w) && !/^\p{Lu}/u.test(words[1] ?? "")));
+      if (isCap && !sentenceWord) run.push(w);
       else flush();
       if (/[,.;:!?)]$/.test(raw)) flush();
     });

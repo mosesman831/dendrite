@@ -198,3 +198,12 @@ test("parseNdjson reports bad lines", () => {
   assert.deepEqual(r.errors, [{ index: 2, error: "invalid JSON" }]);
   assert.deepEqual(r.lineIndex, [0, 3]);
 });
+
+test("extractEntities ignores sentence-initial ordinary words but keeps names", () => {
+  const e = (t) => extractEntities(t).entities;
+  assert.deepEqual(e("Deep work block"), []);
+  assert.deepEqual(e("Planning session with Ines"), ["Ines"]);
+  assert.deepEqual(e("Working late. Really tired"), []);
+  assert.deepEqual(e("Ines said the Team Rocket demo went well"), ["Ines", "Team Rocket"]);
+  assert.deepEqual(e("Sterling Archer called"), ["Sterling Archer"]);
+});
