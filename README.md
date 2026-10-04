@@ -468,7 +468,7 @@ When an event is ingested, any alias is rewritten to its canonical name, matched
 
 `dendrite entities-prune` lists stored entities that are only stop or sentence-start words (e.g. "Deep" from "Deep work block", left by older extractor versions); `--apply` removes them from those events (the event text is untouched).
 
-**Meeting prep.** `dendrite prep` (also `GET /v1/prep`, MCP `meeting_prep` and Telegram `/prep`) takes your next calendar entry (or `--event <id>`) and, for each person or thing in it, shows when you last interacted, recent history and the open loops you owe them.
+**Meeting prep.** `dendrite prep` (also `GET /v1/prep`, MCP `meeting_prep` and Telegram `/prep`) takes your next calendar entry (or `--event <id>`) and, for each person or thing in it, shows when you last interacted, recent history and the open loops you owe them. Set `prep: { nudge_minutes: 10 }` and `serve` sends that prep to Telegram 10 minutes before each entry.
 
 ### Named places
 

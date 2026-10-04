@@ -166,6 +166,13 @@ export const ConfigSchema = z.object({
       include_sensitive: z.boolean().default(false),
     })
     .default({}),
+  prep: z
+    .object({
+      /** If > 0, `serve` sends a meeting prep to Telegram this many minutes before each calendar entry. */
+      nudge_minutes: z.number().int().min(0).max(240).default(0),
+      include_sensitive: z.boolean().default(false),
+    })
+    .default({}),
   /** Recurring things to keep up; matched by full-text `query` (default: name). */
   habits: z
     .array(z.object({ name: z.string().min(1), query: z.string().optional(), stream: z.string().optional(), every_days: z.number().int().min(1).default(7) }))

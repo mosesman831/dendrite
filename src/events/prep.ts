@@ -3,6 +3,7 @@ import type { EventRecord, PrivacyLevel } from "./types.js";
 import { entityProfile } from "./recall.js";
 import { eventSummary } from "./timeline.js";
 import { localDate, localTime } from "./time.js";
+import { privacyRank } from "./enrich.js";
 
 export interface PrepOptions {
   now?: string;
@@ -36,7 +37,7 @@ export function buildPrep(store: EventStore, o: PrepOptions = {}): MeetingPrep {
   let ev: EventRecord | undefined;
   if (o.eventId) {
     const e = store.get(o.eventId);
-    ev = e && e.stream === "calendar" ? e : undefined;
+    ev = e && e.stream === "calendar" && privacyRank(e.privacy) <= privacyRank(maxPrivacy) ? e : undefined;
   } else {
     ev = store
       .query({
@@ -80,4 +81,17 @@ export function renderPrep(p: MeetingPrep, tz = "UTC"): string {
     if (x.recent.length) out.push("**Recently:**", ...x.recent.map((r) => `- ${localDate(r.at, tz)} [${r.stream}] ${r.summary}`));
   }
   return out.join("\n") + "\n";
+}
+
+/** Calendar entries starting within `minutes` that haven't been nudged yet (ids recorded in `sent`). */
+export function dueNudges(store: EventStore, o: PrepOptions & { minutes: number; sent: Set<string> }): MeetingPrep[] {
+  const now = o.now ?? new Date().toISOString();
+  const to = new Date(Date.parse(now) + o.minutes * 60_000).toISOString();
+  return store
+    .query({ stream: "calendar", maxPrivacy: o.maxPrivacy ?? "normal", from: now, to, order: "asc", limit: 20 })
+    .events.filter((e) => e.kind !== "cancelled" && e.occurred_at >= now && !o.sent.has(e.id))
+    .map((e) => {
+      o.sent.add(e.id);
+      return buildPrep(store, { ...o, now, eventId: e.id });
+    });
 }
