@@ -4,7 +4,14 @@
   "description": "Knowledge ingestion daemon — classify, route, and cross-link dumps into an Obsidian vault",
   "type": "module",
   "license": "MIT",
-  "keywords": ["obsidian", "knowledge-management", "llm", "telegram", "mcp", "zettelkasten"],
+  "keywords": [
+    "obsidian",
+    "knowledge-management",
+    "llm",
+    "telegram",
+    "mcp",
+    "zettelkasten"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/mosesman831/dendrite.git"
@@ -24,14 +31,15 @@
     "doctor": "node dist/cli.js doctor",
     "ingest": "node dist/cli.js ingest",
     "test": "node scripts/thorough-test.mjs",
-    "test:ci": "node scripts/ci-smoke.mjs"
+    "test:ci": "node scripts/ci-smoke.mjs && node --test test/*.test.mjs",
+    "test:unit": "node --test test/*.test.mjs"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "better-sqlite3": "^11.9.1",
+    "better-sqlite3": "^12.11.1",
     "commander": "^13.1.0",
     "cron": "^4.1.0",
     "express": "^5.1.0",

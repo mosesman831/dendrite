@@ -8,7 +8,7 @@ import { LlmBlockSchema, SttBlockSchema, parseLlmBlock, type LlmEndpoints, type 
 
 export type { LlmEndpoints, SttConfig };
 
-const ConfigSchema = z.object({
+export const ConfigSchema = z.object({
   vault: z.object({
     path: z.string(),
     compartments_file: z.string().default("compartments.yaml"),
@@ -112,6 +112,39 @@ const ConfigSchema = z.object({
       durable: z.boolean().default(true),
       max_concurrency: z.number().default(2),
       max_retries: z.number().default(5),
+    })
+    .default({}),
+  events: z
+    .object({
+      enabled: z.boolean().default(true),
+      max_batch: z.number().int().positive().default(1000),
+      default_source: z.string().default("api"),
+      stream_weights: z.record(z.number().min(0).max(1)).default({}),
+    })
+    .default({}),
+  privacy: z
+    .object({
+      redact_at_rest: z.boolean().default(true),
+      rules: z.array(z.string()).default(["api_key", "bearer", "private_key", "credit_card"]),
+      custom_rules: z.array(z.object({ name: z.string(), pattern: z.string() })).default([]),
+      streams: z.record(z.enum(["normal", "sensitive", "secret"])).default({ health: "sensitive" }),
+    })
+    .default({}),
+  retention: z
+    .object({
+      streams: z.record(z.string()).default({}),
+    })
+    .default({}),
+  mcp: z
+    .object({
+      allow_writes: z.boolean().default(false),
+      include_sensitive: z.boolean().default(false),
+    })
+    .default({}),
+  http: z
+    .object({
+      max_body: z.string().default("5mb"),
+      rate_limit_per_min: z.number().int().nonnegative().default(600),
     })
     .default({}),
   voice: z.object({ keep_audio: z.boolean().default(false) }).default({}),

@@ -2,6 +2,7 @@ import { loadConfig, loadCompartments } from "../config.js";
 import { createPipelineContext, drainQueue } from "../pipeline/pipeline.js";
 import { createExpressApp, mountWebhookRoute } from "../inputs/webhook.js";
 import { mountDashboard } from "../inputs/dashboard.js";
+import { mountEventsApi } from "../inputs/events-api.js";
 import { startTelegramBot, runQueueWorker } from "../inputs/telegram.js";
 import {
   scheduleDailyPrompt,
@@ -23,6 +24,8 @@ export async function runServe(opts: { config?: string }): Promise<void> {
     app.get("/health", (_req, res) => res.json({ ok: true }));
   }
 
+  mountEventsApi(app, config, ctx.index);
+
   // Mount dashboard routes (always available)
   mountDashboard(app, ctx, compartments, config);
 
@@ -35,6 +38,7 @@ export async function runServe(opts: { config?: string }): Promise<void> {
     if (config.inputs.webhook.enabled) {
       console.log(`  Webhook: POST /ingest`);
     }
+    console.log(`  Events:  POST /v1/events · GET /v1/events · GET /v1/streams`);
     console.log(`  Dashboard: http://localhost:${port}/dashboard`);
   });
 

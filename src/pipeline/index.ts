@@ -4,6 +4,7 @@ import { dirname, join, relative } from "node:path";
 import matter from "gray-matter";
 import type { Correction, NoteRecord, SearchHit } from "../types.js";
 import { blobToVector, cosineSimilarity, vectorToBlob } from "../providers/embeddings.js";
+import { EventStore } from "../events/store.js";
 
 /** Paths Dendrite manages internally — never index or cross-link these. */
 export function isSystemNotePath(relPath: string): boolean {
@@ -97,6 +98,14 @@ export class DendriteIndex {
         VALUES (new.rowid, new.title, new.entities, new.tags, new.summary);
       END;
     `);
+  }
+
+  private _events?: EventStore;
+
+  /** Append-only life-event log sharing this SQLite connection. */
+  get events(): EventStore {
+    if (!this._events) this._events = new EventStore(this.db);
+    return this._events;
   }
 
   close(): void {

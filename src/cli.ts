@@ -16,6 +16,7 @@ import { runEmbed } from "./commands/embed.js";
 import { runAsk } from "./commands/ask.js";
 import { runEval } from "./commands/eval.js";
 import { startMcpServer } from "./mcp/server.js";
+import { runRecord } from "./commands/record.js";
 
 const program = new Command();
 
@@ -43,6 +44,26 @@ program
   .option("-f, --file <path>", "Audio file to transcribe and ingest")
   .option("--dry-run", "Show target without writing")
   .action(runIngest);
+
+const collect = (v: string, prev: string[] = []) => [...prev, v];
+
+program
+  .command("record [text]")
+  .description("Append a raw life event to the event log (no LLM; lossless)")
+  .option("-c, --config <path>", "Config file path")
+  .option("-s, --stream <name>", "Stream, e.g. note, location, health, chat", "note")
+  .option("-k, --kind <name>", "Event kind within the stream", "entry")
+  .option("--source <name>", "Source/device id", "cli")
+  .option("--at <time>", "When it happened (ISO, epoch, or 'YYYY-MM-DD HH:MM')")
+  .option("--end <time>", "End time for spans")
+  .option("--data <json>", "JSON payload")
+  .option("--tag <tag>", "Tag (repeatable)", collect)
+  .option("--entity <name>", "Entity (repeatable)", collect)
+  .option("--importance <0-1>", "Override salience score")
+  .option("--privacy <level>", "normal | sensitive | secret")
+  .option("--id <externalId>", "External id for idempotent re-sends")
+  .option("--json", "Output machine-readable JSON")
+  .action(runRecord);
 
 program
   .command("serve")
