@@ -53,7 +53,7 @@ export async function runWho(name: string, opts: { config?: string; json?: boole
   const { config } = loadConfig(opts.config);
   const index = new DendriteIndex(config.index.db_path);
   try {
-    const p = entityProfile(index.events, name);
+    const p = entityProfile(index.events, name, { aliases: config.aliases });
     if (opts.json) {
       console.log(JSON.stringify(p, null, 2));
       return;

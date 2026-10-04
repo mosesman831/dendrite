@@ -332,7 +332,7 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
 
   app.get("/v1/entities/:name", (req, res) => {
     if (!guard(req, res)) return;
-    const p = entityProfile(store, req.params.name);
+    const p = entityProfile(store, req.params.name, { aliases: config.aliases });
     if (!p.count) {
       res.status(404).json({ error: "unknown entity" });
       return;
