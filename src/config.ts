@@ -154,6 +154,42 @@ export const ConfigSchema = z.object({
       prune_cron: z.string().default("30 3 * * *"),
     })
     .default({}),
+  triggers: z
+    .array(
+      z.object({
+        name: z.string().regex(/^[\w.-]{1,64}$/),
+        enabled: z.boolean().default(true),
+        match: z
+          .object({
+            stream: z.array(z.string()).optional(),
+            kind: z.array(z.string()).optional(),
+            source: z.array(z.string()).optional(),
+            entity: z.array(z.string()).optional(),
+            text: z.string().optional(),
+            min_importance: z.number().min(0).max(1).optional(),
+          })
+          .default({}),
+        include_sensitive: z.boolean().default(false),
+        cooldown_sec: z.number().int().nonnegative().default(0),
+        webhook: z
+          .object({
+            url: z.string().url(),
+            secret_env: z.string().optional(),
+            timeout_ms: z.number().int().positive().default(10_000),
+            retries: z.number().int().min(0).max(10).default(3),
+          })
+          .optional(),
+        record: z
+          .object({
+            stream: z.string(),
+            kind: z.string(),
+            text: z.string().default("{{text}}"),
+            tags: z.array(z.string()).default([]),
+          })
+          .optional(),
+      }),
+    )
+    .default([]),
   mcp: z
     .object({
       allow_writes: z.boolean().default(false),
