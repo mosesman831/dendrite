@@ -52,6 +52,13 @@ export const ConfigSchema = z.object({
         tokenEnv: z.string().default("DENDRITE_WEBHOOK_TOKEN"),
       })
       .default({}),
+    drop_folder: z
+      .object({
+        enabled: z.boolean().default(false),
+        path: z.string().default("./inbox-drop"),
+        poll_seconds: z.number().int().min(1).default(30),
+      })
+      .default({}),
     daily_prompt: z
       .object({
         enabled: z.boolean().default(false),
@@ -239,6 +246,7 @@ export function loadConfig(configPath?: string): ResolvedConfig {
   const raw = parseYaml(readFileSync(resolved, "utf8"));
   const config = ConfigSchema.parse(raw);
   config.vault.path = expandPath(config.vault.path, configDir);
+  config.inputs.drop_folder.path = expandPath(config.inputs.drop_folder.path, configDir);
   config.index.db_path = expandPath(config.index.db_path, configDir);
   const llm = parseLlmBlock(config.providers.llm);
   return { config, configDir, llm };

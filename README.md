@@ -383,6 +383,18 @@ dendrite digest --week
 
 HTTP (bearer = `DENDRITE_WEBHOOK_TOKEN`): `POST /v1/events` (single / array / `{events}`), `POST /v1/events/ndjson`, `GET /v1/events?from&to&stream&kind&entity&q&cursor`, `GET /v1/events/:id`, `DELETE /v1/events/:id`, `GET /v1/streams`, `GET /v1/entities`, `GET /v1/timeline?date&period=week`, `GET /v1/digest?date`.
 
+Bulk history import (idempotent; re-running only adds new events):
+
+```bash
+dendrite import calendar.ics             # VEVENTs → calendar/event (UID-deduped)
+dendrite import ride.gpx                 # trackpoints → location/point (60s downsample) + waypoints
+dendrite import health.csv -s health -k daily   # any CSV with a date/time column; numeric cols → data
+dendrite import ~/code/myrepo            # git log → git/commit (sha-deduped)
+dendrite import export.ndjson            # raw events
+```
+
+Drop folder: set `inputs.drop_folder.enabled: true` and `dendrite serve` will import any file dropped into `inputs.drop_folder.path` (json/ndjson/ics/gpx/csv) every `poll_seconds`. Imported files move to `processed/`; files that fail move to `failed/` with an `.error.txt` next to them.
+
 MCP tools: `record_event`, `query_events`, `timeline`, `event_streams`.
 
 Config: `events.*`, `privacy.{redact_at_rest,rules,custom_rules,streams}`, `digest.{folder,write_empty}`.
