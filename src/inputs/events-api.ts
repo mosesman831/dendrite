@@ -1,3 +1,4 @@
+import { buildNow, renderNow } from "../events/now.js";
 import { habitStatus, renderHabits } from "../events/habits.js";
 import { lastTime, renderLastTime } from "../events/last.js";
 import { renderSources, sourceHealth } from "../events/sources.js";
@@ -273,6 +274,14 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
     const b = buildBriefing(store, date, briefOptionsFromConfig(config));
     if (req.query.format === "markdown") res.type("text/markdown").send(renderBriefing(b));
     else res.json(b);
+  });
+
+  app.get("/v1/now", (req, res) => {
+    if (!guard(req, res)) return;
+    const tz = config.vault.timezone;
+    const n = buildNow(store, { timezone: tz, places: config.places, habits: config.habits, maxPrivacy: req.query.sensitive === "1" ? "sensitive" : "normal" });
+    if (req.query.format === "markdown") res.type("text/markdown").send(renderNow(n, tz));
+    else res.json(n);
   });
 
   app.get("/v1/habits", (req, res) => {

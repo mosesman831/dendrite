@@ -1,3 +1,4 @@
+import { buildNow, renderNow } from "../events/now.js";
 import { habitStatus, renderHabits } from "../events/habits.js";
 import { lastTime, renderLastTime } from "../events/last.js";
 import { aliasUsage, applyAliases } from "../events/aliases.js";
@@ -226,6 +227,18 @@ export async function runHabits(opts: { config?: string; json?: boolean }): Prom
   try {
     const rows = habitStatus(index.events, config.habits, { timezone: config.vault.timezone });
     console.log(opts.json ? JSON.stringify(rows, null, 2) : renderHabits(rows));
+  } finally {
+    index.close();
+  }
+}
+
+export async function runNow(opts: { config?: string; json?: boolean; sensitive?: boolean }): Promise<void> {
+  const { config } = loadConfig(opts.config);
+  const index = new DendriteIndex(config.index.db_path);
+  try {
+    const tz = config.vault.timezone;
+    const n = buildNow(index.events, { timezone: tz, places: config.places, habits: config.habits, maxPrivacy: opts.sensitive ? "sensitive" : "normal" });
+    console.log(opts.json ? JSON.stringify(n, null, 2) : renderNow(n, tz));
   } finally {
     index.close();
   }
