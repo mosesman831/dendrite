@@ -178,6 +178,16 @@ export const ConfigSchema = z.object({
       }),
     )
     .default([]),
+  /** Derive location/stay events from streamed points while `serve` runs. */
+  stays: z
+    .object({
+      live: z.boolean().default(true),
+      interval_min: z.number().int().min(1).default(15),
+      lookback_hours: z.number().int().min(1).max(168).default(24),
+      radius_m: z.number().positive().default(150),
+      min_minutes: z.number().int().min(1).default(10),
+    })
+    .default({}),
   insights: z
     .object({
       /** If set, `serve` sends a period-over-period review to Telegram on this schedule, e.g. "0 18 * * 0" (Sunday 18:00). */
