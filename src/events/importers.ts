@@ -91,15 +91,16 @@ export function parseIcs(text: string, opts: ImportOptions = {}): ParsedImport {
       const summary = cur.SUMMARY ? unescapeIcs(cur.SUMMARY.value) : "(untitled event)";
       const location = cur.LOCATION ? unescapeIcs(cur.LOCATION.value) : undefined;
       const description = cur.DESCRIPTION ? unescapeIcs(cur.DESCRIPTION.value) : undefined;
+      const cancelled = cur.STATUS?.value?.trim().toUpperCase() === "CANCELLED";
       const allDay = /VALUE=DATE(?!-)/.test(cur.DTSTART.params) || /^\d{8}$/.test(cur.DTSTART.value);
       items.push({
         stream: opts.stream ?? "calendar",
-        kind: opts.kind ?? "event",
+        kind: opts.kind ?? (cancelled ? "cancelled" : "event"),
         source: opts.source ?? "ics",
         occurred_at: start,
         ended_at: end && end >= start ? end : undefined,
         external_id: cur.UID?.value ? `${cur.UID.value}${cur["RECURRENCE-ID"] ? `@${cur["RECURRENCE-ID"].value}` : ""}` : undefined,
-        text: [summary, location ? `@ ${location}` : "", description ?? ""].filter(Boolean).join(" — ").slice(0, 4000),
+        text: [cancelled ? `Cancelled: ${summary}` : summary, location ? `@ ${location}` : "", description ?? ""].filter(Boolean).join(" — ").slice(0, 4000),
         data: {
           summary,
           location,
