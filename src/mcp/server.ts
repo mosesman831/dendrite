@@ -1,3 +1,4 @@
+import { habitStatus, renderHabits } from "../events/habits.js";
 import { lastTime, renderLastTime } from "../events/last.js";
 import { renderSources, sourceHealth } from "../events/sources.js";
 import { placeVisits, renderPlaces } from "../events/places.js";
@@ -210,6 +211,16 @@ export async function startMcpServer(configPath?: string): Promise<void> {
       let rows = listPeople(index.events, { maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal", limit: 200 });
       if (a.drifting_only) rows = rows.filter((r) => r.drifting);
       return a.format === "json" ? json(rows) : { content: [{ type: "text" as const, text: renderPeople(rows) }] };
+    },
+  );
+
+  server.tool(
+    "habits",
+    "The user's configured habits (gym, call mum, …): when each was last done per the life log, current streak, 30-day count, and which are overdue.",
+    { format: z.enum(["markdown", "json"]).optional() },
+    async (a) => {
+      const rows = habitStatus(index.events, config.habits ?? [], { timezone: config.vault.timezone, maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal" });
+      return a.format === "json" ? json(rows) : { content: [{ type: "text" as const, text: renderHabits(rows) }] };
     },
   );
 

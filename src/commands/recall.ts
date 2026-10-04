@@ -1,3 +1,4 @@
+import { habitStatus, renderHabits } from "../events/habits.js";
 import { lastTime, renderLastTime } from "../events/last.js";
 import { aliasUsage, applyAliases } from "../events/aliases.js";
 import { renderSources, sourceHealth } from "../events/sources.js";
@@ -214,6 +215,17 @@ export async function runLast(query: string[], opts: { config?: string; json?: b
   try {
     const r = lastTime(index.events, query.join(" "), { timezone: config.vault.timezone, maxPrivacy: opts.sensitive ? "sensitive" : "normal" });
     console.log(opts.json ? JSON.stringify(r, null, 2) : renderLastTime(r, config.vault.timezone));
+  } finally {
+    index.close();
+  }
+}
+
+export async function runHabits(opts: { config?: string; json?: boolean }): Promise<void> {
+  const { config } = loadConfig(opts.config);
+  const index = new DendriteIndex(config.index.db_path);
+  try {
+    const rows = habitStatus(index.events, config.habits, { timezone: config.vault.timezone });
+    console.log(opts.json ? JSON.stringify(rows, null, 2) : renderHabits(rows));
   } finally {
     index.close();
   }

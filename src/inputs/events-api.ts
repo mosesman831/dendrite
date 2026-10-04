@@ -1,3 +1,4 @@
+import { habitStatus, renderHabits } from "../events/habits.js";
 import { lastTime, renderLastTime } from "../events/last.js";
 import { renderSources, sourceHealth } from "../events/sources.js";
 import express, { type Express, type Request, type Response } from "express";
@@ -272,6 +273,13 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
     const b = buildBriefing(store, date, briefOptionsFromConfig(config));
     if (req.query.format === "markdown") res.type("text/markdown").send(renderBriefing(b));
     else res.json(b);
+  });
+
+  app.get("/v1/habits", (req, res) => {
+    if (!guard(req, res)) return;
+    const rows = habitStatus(store, config.habits ?? [], { timezone: config.vault.timezone });
+    if (req.query.format === "markdown") res.type("text/markdown").send(renderHabits(rows));
+    else res.json({ habits: rows });
   });
 
   app.get("/v1/last", (req, res) => {

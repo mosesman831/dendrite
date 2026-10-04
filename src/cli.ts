@@ -19,7 +19,7 @@ import { startMcpServer } from "./mcp/server.js";
 import { runRecord } from "./commands/record.js";
 import { runTimeline, runDigest } from "./commands/timeline.js";
 import { runImport } from "./commands/import.js";
-import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights, runPeople, runPlaces, runSources, runAliases, runLast } from "./commands/recall.js";
+import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights, runPeople, runPlaces, runSources, runAliases, runLast, runHabits } from "./commands/recall.js";
 import { runTriggersTest } from "./commands/triggers.js";
 import { runPrune, runExport, runBackup } from "./commands/ops.js";
 
@@ -189,6 +189,13 @@ program
   .option("--sensitive", "Include sensitive events")
   .option("--json", "Machine-readable output")
   .action(runLast);
+
+program
+  .command("habits")
+  .description("Configured habits: last done, streak, 30-day count, and which are overdue")
+  .option("-c, --config <path>", "Config file path")
+  .option("--json", "Machine-readable output")
+  .action(runHabits);
 
 program
   .command("export")

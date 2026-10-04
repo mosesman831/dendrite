@@ -1,3 +1,4 @@
+import { habitStatus, renderHabits } from "../events/habits.js";
 import { lastTime, renderLastTime } from "../events/last.js";
 import type { DendriteConfig, EmbeddingsConfig } from "../config.js";
 import type { EventStore } from "../events/store.js";
@@ -32,6 +33,7 @@ export const LIFE_COMMANDS = [
   { command: "drop", description: "Drop a loop: /drop <id>" },
   { command: "recall", description: "Search your life log: /recall <query>" },
   { command: "last", description: "When did I last…? /last <thing>" },
+  { command: "habits", description: "Habit streaks and what's overdue" },
   { command: "log", description: "Record an event verbatim: /log <text>" },
   { command: "where", description: "Last known location" },
 ] as const;
@@ -100,6 +102,8 @@ export async function lifeCommand(d: LifeDeps, cmd: string, arg: string): Promis
       if (!l) return "Loop not found.";
       return status === "snoozed" ? `Snoozed until ${localDate(until!, tz)} ${localTime(until!, tz)}: ${l.text}` : `${status === "done" ? "✓ Done" : "✗ Dropped"}: ${l.text}`;
     }
+    case "habits":
+      return clip(renderHabits(habitStatus(store, config.habits ?? [], { now: nowIso, timezone: tz, maxPrivacy: "normal" })));
     case "last":
       if (!a) return "Usage: /last <thing> — e.g. /last haircut";
       return clip(renderLastTime(lastTime(store, a, { now: nowIso, timezone: tz }), tz));
