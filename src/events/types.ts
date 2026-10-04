@@ -8,34 +8,56 @@ export const MAX_DATA_BYTES = 256 * 1024;
 
 const TimeInput = z.union([z.string(), z.number()]);
 
-export const EventInputSchema = z
-  .object({
-    stream: z
-      .string()
-      .min(1)
-      .max(64)
-      .regex(/^[a-z0-9][a-z0-9_.:-]*$/i, "stream must be alphanumeric with _ . : -"),
-    kind: z
-      .string()
-      .min(1)
-      .max(64)
-      .regex(/^[a-z0-9][a-z0-9_.:-]*$/i, "kind must be alphanumeric with _ . : -"),
-    source: z.string().min(1).max(128).optional(),
-    occurred_at: TimeInput.optional(),
-    ended_at: TimeInput.optional(),
-    external_id: z.string().min(1).max(256).optional(),
-    text: z.string().optional(),
-    data: z.unknown().optional(),
-    entities: z.array(z.string().max(200)).max(100).optional(),
-    tags: z.array(z.string().max(100)).max(100).optional(),
-    lat: z.number().min(-90).max(90).optional(),
-    lon: z.number().min(-180).max(180).optional(),
-    importance: z.number().min(0).max(1).optional(),
-    privacy: z.enum(PRIVACY_LEVELS).optional(),
-  })
-  .refine((e) => (e.text && e.text.trim().length > 0) || e.data !== undefined, {
-    message: "event requires text or data",
-  });
+/** Producers (and our own export) often send explicit nulls; treat them as absent. */
+const stripNulls = (v: unknown) =>
+  v && typeof v === "object" && !Array.isArray(v)
+    ? Object.fromEntries(
+        Object.entries(v as Record<string, unknown>).filter(
+          ([, x]) => x !== null,
+        ),
+      )
+    : v;
+
+export const EventInputSchema = z.preprocess(
+  stripNulls,
+  z
+    .object({
+      stream: z
+        .string()
+        .min(1)
+        .max(64)
+        .regex(
+          /^[a-z0-9][a-z0-9_.:-]*$/i,
+          "stream must be alphanumeric with _ . : -",
+        ),
+      kind: z
+        .string()
+        .min(1)
+        .max(64)
+        .regex(
+          /^[a-z0-9][a-z0-9_.:-]*$/i,
+          "kind must be alphanumeric with _ . : -",
+        ),
+      source: z.string().min(1).max(128).optional(),
+      occurred_at: TimeInput.optional(),
+      ended_at: TimeInput.optional(),
+      external_id: z.string().min(1).max(256).optional(),
+      text: z.string().optional(),
+      data: z.unknown().optional(),
+      entities: z.array(z.string().max(200)).max(100).optional(),
+      tags: z.array(z.string().max(100)).max(100).optional(),
+      lat: z.number().min(-90).max(90).optional(),
+      lon: z.number().min(-180).max(180).optional(),
+      importance: z.number().min(0).max(1).optional(),
+      privacy: z.enum(PRIVACY_LEVELS).optional(),
+    })
+    .refine(
+      (e) => (e.text && e.text.trim().length > 0) || e.data !== undefined,
+      {
+        message: "event requires text or data",
+      },
+    ),
+);
 
 export type EventInput = z.infer<typeof EventInputSchema>;
 

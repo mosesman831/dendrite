@@ -5,6 +5,7 @@ import { enqueueAndProcess } from "../pipeline/pipeline.js";
 import { hashId } from "../util/slug.js";
 import { ingestEvents, ingestOptionsFromConfig } from "../events/ingest.js";
 import { mountEventsApi } from "./events-api.js";
+import { applyHttpHardening } from "./http-security.js";
 import type { DendriteConfig } from "../config.js";
 
 /** Create the canonical Express app for Dendrite's HTTP surface. */
@@ -13,7 +14,9 @@ export function createExpressApp(
   ctx: PipelineContext,
 ): Express {
   const app = express();
-  app.use(express.json({ limit: "1mb" }));
+  app.set("trust proxy", "loopback");
+  applyHttpHardening(app, config);
+  app.use(express.json({ limit: config.http.max_body }));
   return app;
 }
 

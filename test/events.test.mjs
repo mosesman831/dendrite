@@ -92,6 +92,7 @@ test("prepareEvent validates and normalizes", () => {
   assert.equal(e.privacy, "sensitive");
   assert.equal(e.occurred_at, "2026-10-04T08:00:00.000Z");
   assert.throws(() => prepareEvent({ stream: "x", kind: "y" }), /text or data/);
+  assert.equal(prepareEvent({ stream: "x", kind: "y", text: "t", lat: null, data: null, ended_at: null }).lat, null);
   assert.throws(() => prepareEvent({ stream: "bad stream", kind: "y", text: "t" }), /stream/);
   assert.throws(() => prepareEvent({ stream: "x", kind: "y", text: "t", occurred_at: "nope" }), /occurred_at/);
   assert.throws(
