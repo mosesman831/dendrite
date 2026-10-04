@@ -83,3 +83,18 @@ test("GET /v1/events filters + pagination + streams + entities", async () => {
   const e = await fetch(`${base}/v1/entities`, { headers: auth }).then((r) => r.json());
   assert.ok(e.entities.some((x) => x.entity === "Kings Cross"));
 });
+
+test("POST /v1/receivers/:kind — query token, idempotent, protocol replies", async () => {
+  const body = JSON.stringify({ _type: "location", lat: 1, lon: 2, tst: 1790000000, tid: "t" });
+  const post = (path) => fetch(`${base}${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body });
+  assert.equal((await post("/v1/receivers/owntracks")).status, 401);
+  let r = await post(`/v1/receivers/owntracks?token=${TOKEN}`);
+  assert.equal(r.status, 200);
+  assert.deepEqual(await r.json(), []);
+  await post(`/v1/receivers/owntracks?token=${TOKEN}`);
+  const j = await fetch(`${base}/v1/events?stream=location`, { headers: auth }).then((x) => x.json());
+  assert.equal(j.events.filter((e) => e.source === "owntracks").length, 1);
+  r = await fetch(`${base}/v1/receivers/overland`, { method: "POST", headers: { ...auth, "Content-Type": "application/json" }, body: JSON.stringify({ locations: [] }) });
+  assert.deepEqual(await r.json(), { result: "ok" });
+  assert.equal((await post(`/v1/receivers/nope?token=${TOKEN}`)).status, 404);
+});
