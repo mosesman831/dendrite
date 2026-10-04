@@ -18,6 +18,7 @@ import { runEval } from "./commands/eval.js";
 import { startMcpServer } from "./mcp/server.js";
 import { runRecord } from "./commands/record.js";
 import { runTimeline, runDigest } from "./commands/timeline.js";
+import { runImport } from "./commands/import.js";
 
 const program = new Command();
 
@@ -65,6 +66,18 @@ program
   .option("--id <externalId>", "External id for idempotent re-sends")
   .option("--json", "Output machine-readable JSON")
   .action(runRecord);
+
+program
+  .command("import <path>")
+  .description("Bulk-import history: json, ndjson, ics (calendar), gpx (location), csv (any metrics), or a git repo dir")
+  .option("-c, --config <path>", "Config file path")
+  .option("-f, --format <fmt>", "json|ndjson|ics|gpx|csv|git (default: auto-detect)")
+  .option("-s, --stream <name>", "Override stream")
+  .option("-k, --kind <name>", "Override kind")
+  .option("--source <name>", "Override source")
+  .option("--limit <n>", "git: max commits")
+  .option("--json", "Machine-readable output")
+  .action(runImport);
 
 program
   .command("timeline [date]")

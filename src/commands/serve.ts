@@ -3,6 +3,7 @@ import { createPipelineContext, drainQueue } from "../pipeline/pipeline.js";
 import { createExpressApp, mountWebhookRoute } from "../inputs/webhook.js";
 import { mountDashboard } from "../inputs/dashboard.js";
 import { mountEventsApi } from "../inputs/events-api.js";
+import { startDropFolder } from "../inputs/drop-folder.js";
 import { startTelegramBot, runQueueWorker } from "../inputs/telegram.js";
 import {
   scheduleDailyPrompt,
@@ -35,6 +36,7 @@ export async function runServe(opts: { config?: string }): Promise<void> {
     : (config.dashboard?.port ?? 8788);
   app.listen(port, () => {
     console.log(`Dendrite HTTP listening on :${port}`);
+    if (config.inputs.drop_folder.enabled) startDropFolder(config, ctx.index);
     if (config.inputs.webhook.enabled) {
       console.log(`  Webhook: POST /ingest`);
     }
