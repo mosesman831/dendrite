@@ -107,6 +107,11 @@ const START_ONLY = new Set([
   "Interview", "Call", "Doctor", "Dentist", "Haircut", "Flight", "Train", "Drive", "Dinner", "Party",
 ]);
 
+/** A stored entity that is just a stop/sentence-start word (e.g. "Deep", "Planning"): never a real name. */
+export function isNoiseEntity(name: string): boolean {
+  return STOP_CAPS.has(name) || START_ONLY.has(name);
+}
+
 /** Cheap deterministic entity extraction: @handles, #tags, URLs → domains, proper-noun runs. */
 export function extractEntities(text: string): { entities: string[]; tags: string[] } {
   const entities = new Set<string>();

@@ -19,7 +19,7 @@ import { startMcpServer } from "./mcp/server.js";
 import { runRecord } from "./commands/record.js";
 import { runTimeline, runDigest } from "./commands/timeline.js";
 import { runImport } from "./commands/import.js";
-import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights, runPeople, runPlaces, runSources, runAliases, runLast, runHabits, runNow } from "./commands/recall.js";
+import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights, runPeople, runPlaces, runSources, runAliases, runEntitiesPrune, runLast, runHabits, runNow } from "./commands/recall.js";
 import { runCalendarSync } from "./commands/calendars.js";
 import { runTriggersTest } from "./commands/triggers.js";
 import { runPrune, runExport, runBackup } from "./commands/ops.js";
@@ -167,6 +167,14 @@ program
   .option("--apply", "Rewrite stored events so aliases become the canonical entity")
   .option("--json", "Machine-readable output")
   .action(runAliases);
+
+program
+  .command("entities-prune")
+  .description("List entities that are just stop/sentence-start words (\"Deep\", \"Planning\"); --apply removes them")
+  .option("-c, --config <path>", "Config file path")
+  .option("--apply", "Remove them from stored events")
+  .option("--json", "Machine-readable output")
+  .action(runEntitiesPrune);
 
 program
   .command("embed-events")
