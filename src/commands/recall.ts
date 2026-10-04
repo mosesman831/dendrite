@@ -1,3 +1,4 @@
+import { renderSources, sourceHealth } from "../events/sources.js";
 import { loadConfig } from "../config.js";
 import { DendriteIndex } from "../pipeline/index.js";
 import { entityProfile } from "../events/recall.js";
@@ -172,6 +173,17 @@ export async function runPlaces(opts: { config?: string; backfill?: boolean; jso
     const v = placeVisits(index.events, config.places);
     if (opts.json) console.log(JSON.stringify(v, null, 2));
     else for (const p of v) console.log(`${p.name.padEnd(24)} ${String(p.events).padStart(7)} events   last ${p.last_seen?.slice(0, 16).replace("T", " ") ?? "never"}`);
+  } finally {
+    index.close();
+  }
+}
+
+export async function runSources(opts: { config?: string; days?: string; json?: boolean }): Promise<void> {
+  const { config } = loadConfig(opts.config);
+  const index = new DendriteIndex(config.index.db_path);
+  try {
+    const rows = sourceHealth(index.events, { windowDays: Number(opts.days ?? 30) || 30 });
+    console.log(opts.json ? JSON.stringify(rows, null, 2) : renderSources(rows));
   } finally {
     index.close();
   }

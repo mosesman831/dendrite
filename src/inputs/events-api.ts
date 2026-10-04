@@ -1,3 +1,4 @@
+import { renderSources, sourceHealth } from "../events/sources.js";
 import express, { type Express, type Request, type Response } from "express";
 import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
 import { computeInsights, renderInsights } from "../events/insights.js";
@@ -270,6 +271,13 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
     const b = buildBriefing(store, date, briefOptionsFromConfig(config));
     if (req.query.format === "markdown") res.type("text/markdown").send(renderBriefing(b));
     else res.json(b);
+  });
+
+  app.get("/v1/sources", (req, res) => {
+    if (!guard(req, res)) return;
+    const rows = sourceHealth(store, { windowDays: Math.min(365, Number(str(req.query.days) ?? 30) || 30) });
+    if (req.query.format === "markdown") res.type("text/markdown").send(renderSources(rows));
+    else res.json({ sources: rows });
   });
 
   app.get("/v1/people", (req, res) => {

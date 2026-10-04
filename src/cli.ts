@@ -19,7 +19,7 @@ import { startMcpServer } from "./mcp/server.js";
 import { runRecord } from "./commands/record.js";
 import { runTimeline, runDigest } from "./commands/timeline.js";
 import { runImport } from "./commands/import.js";
-import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights, runPeople, runPlaces } from "./commands/recall.js";
+import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights, runPeople, runPlaces, runSources } from "./commands/recall.js";
 import { runTriggersTest } from "./commands/triggers.js";
 import { runPrune, runExport, runBackup } from "./commands/ops.js";
 
@@ -150,6 +150,14 @@ program
   .option("--backfill", "Tag already-stored geo events that fall inside a configured place")
   .option("--json", "Machine-readable output")
   .action(runPlaces);
+
+program
+  .command("sources")
+  .description("Ingest source health: volume, cadence and which continuous feeds have gone silent")
+  .option("-c, --config <path>", "Config file path")
+  .option("--days <n>", "Window in days", "30")
+  .option("--json", "Machine-readable output")
+  .action(runSources);
 
 program
   .command("embed-events")
