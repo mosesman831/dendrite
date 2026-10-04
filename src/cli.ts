@@ -20,6 +20,7 @@ import { runRecord } from "./commands/record.js";
 import { runTimeline, runDigest } from "./commands/timeline.js";
 import { runImport } from "./commands/import.js";
 import { runRecall, runWho } from "./commands/recall.js";
+import { runTriggersTest } from "./commands/triggers.js";
 import { runPrune, runExport, runBackup } from "./commands/ops.js";
 
 const program = new Command();
@@ -124,6 +125,15 @@ program
   .option("--dry-run", "Report without deleting")
   .option("--json", "Machine-readable output")
   .action(runPrune);
+
+program
+  .command("triggers-test")
+  .description("Dry-run configured triggers against recent events (nothing is sent)")
+  .option("-c, --config <path>", "Config file path")
+  .option("--since <dur>", "Look back this far (e.g. 7d, 24h) or an ISO time", "7d")
+  .option("--limit <n>", "Max events to scan", "5000")
+  .option("--json", "Machine-readable output")
+  .action(runTriggersTest);
 
 program
   .command("backup <file>")

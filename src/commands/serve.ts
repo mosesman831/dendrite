@@ -10,6 +10,8 @@ import { writeDigest } from "./timeline.js";
 import { createChatProvider } from "../providers/llm.js";
 import { addDays, localDate } from "../events/time.js";
 import { CronJob } from "cron";
+import { compileTriggers, startTriggers } from "../events/triggers.js";
+import { ingestOptionsFromConfig } from "../events/ingest.js";
 import { startTelegramBot, runQueueWorker } from "../inputs/telegram.js";
 import {
   scheduleDailyPrompt,
@@ -45,6 +47,11 @@ export async function runServe(opts: { config?: string }): Promise<void> {
     if (config.inputs.drop_folder.enabled) startDropFolder(config, ctx.index);
     if (!resolveApiKeys(config).length) {
       console.warn("  ⚠ No API keys or webhook token set — /v1 API is OPEN. Set DENDRITE_WEBHOOK_TOKEN or http.api_keys.");
+    }
+    const triggers = compileTriggers(config.triggers);
+    if (triggers.length) {
+      startTriggers(ctx.index.events, triggers, ingestOptionsFromConfig(config), { log: (m) => console.warn(m) });
+      console.log(`  Triggers: ${triggers.map((t) => t.cfg.name).join(", ")}`);
     }
     if (config.digest.cron) {
       const chat = config.digest.narrate ? createChatProvider(llm) : undefined;
