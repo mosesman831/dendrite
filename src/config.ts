@@ -182,6 +182,19 @@ export const ConfigSchema = z.object({
   /** Canonical entity → alternate spellings/nicknames, merged at ingest (`dendrite aliases --apply` backfills). */
   aliases: z.record(z.array(z.string())).default({}),
   /** ICS subscriptions polled by `serve` (prefer url_env: subscription links are secrets). */
+  /** RSS/Atom subscriptions (Letterboxd, Goodreads, YouTube, blogs…) polled by `serve`. */
+  feeds: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        url: z.string().optional(),
+        url_env: z.string().optional(),
+        interval_min: z.number().int().min(5).default(60),
+        stream: z.string().optional(),
+        privacy: z.enum(["normal", "sensitive", "secret"]).optional(),
+      }),
+    )
+    .default([]),
   calendars: z
     .array(
       z.object({
