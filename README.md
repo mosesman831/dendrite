@@ -446,7 +446,7 @@ If API keys are configured, click **Key** to save one in this browser (localStor
 
 It is deterministic and needs no LLM. HTTP: `GET /v1/insights?days=&to=&format=markdown`. MCP: the `insights` tool.
 
-Only normal-privacy events are counted unless you ask for sensitive ones. Secret events and trigger-derived events are never counted.
+Set `insights.cron` (e.g. `"0 18 * * 0"`, Sunday 18:00) and `serve` sends the review to Telegram. It uses the same delivery as `brief.cron`, and `insights.days` sets the window. In Telegram, use `/insights [days]`. Only normal-privacy events are counted unless you ask for sensitive ones. Secret events and trigger-derived events are never counted.
 
 ### Telegram life commands
 
@@ -456,6 +456,7 @@ Every capture is written to the event log (stream `note`, kind `capture` or `voi
 | --- | --- |
 | `/brief` | The morning briefing |
 | `/today [date]` | Timeline for a day |
+| `/insights [days]` | Patterns vs the previous period |
 | `/loops` | Open loops |
 | `/done <id>`, `/drop <id>`, `/snooze <id> [until]` | Close, drop or snooze a loop. An id prefix of 4+ characters is enough; snooze defaults to +24h |
 | `/recall <q>` | Search your whole log, semantically when embeddings are on |

@@ -3,6 +3,7 @@ import type { EventStore } from "../events/store.js";
 import { ingestEvents, ingestOptionsFromConfig } from "../events/ingest.js";
 import { listLoops, renderLoops, setLoopStatus, type LoopStatus } from "../events/loops.js";
 import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
+import { computeInsights, renderInsights } from "../events/insights.js";
 import { recallHybrid } from "../events/semantic.js";
 import { summarizeDay, renderTimelineText, eventSummary } from "../events/timeline.js";
 import { localDate, localTime, normalizeTime } from "../events/time.js";
@@ -17,6 +18,7 @@ export interface LifeDeps {
 export const LIFE_COMMANDS = [
   { command: "brief", description: "Today at a glance: agenda, loops, yesterday" },
   { command: "today", description: "Timeline for today (or /today YYYY-MM-DD)" },
+  { command: "insights", description: "Patterns vs the previous period: /insights [days]" },
   { command: "loops", description: "Open loops (things you said you'd do)" },
   { command: "done", description: "Close a loop: /done <id>" },
   { command: "snooze", description: "Snooze a loop: /snooze <id> [until]" },
@@ -58,6 +60,11 @@ export async function lifeCommand(d: LifeDeps, cmd: string, arg: string): Promis
       const date = DAY.test(a) ? a : today;
       const s = summarizeDay(store, date, { timezone: tz, maxPrivacy: "normal", maxTimeline: 80 });
       return clip(s.total ? renderTimelineText(s) : `Nothing recorded on ${date}.`);
+    }
+    case "insights": {
+      const days = arg.trim() ? Number(arg.trim()) : (config.insights?.days ?? 7);
+      if (!Number.isInteger(days) || days < 1 || days > 366) return "Usage: /insights [days 1–366]";
+      return clip(renderInsights(computeInsights(store, { to: today, days, timezone: tz, maxPrivacy: config.insights?.include_sensitive ? "sensitive" : "normal" })));
     }
     case "loops": {
       const loops = listLoops(store, { status: "active", maxPrivacy: "normal", limit: 30, now: nowIso });

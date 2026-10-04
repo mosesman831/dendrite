@@ -44,4 +44,7 @@ test("/log, /today, /recall, /where, /brief", async () => {
   assert.match(await run("where"), /2026-10-04 07:30 .*\(51\.5000, -0\.1200\)/);
   assert.match(await run("brief"), /# Briefing — 2026-10-04/);
   assert.match(await run("today", "1999-01-01"), /Nothing recorded/);
+  assert.match(await run("insights"), /# Insights — 2026-09-28 → 2026-10-04 \(7 days\)[\s\S]*Coffee|# Insights — 2026-09-28 → 2026-10-04 \(7 days\)/);
+  assert.match(await run("insights", "30"), /\(30 days\)/);
+  assert.match(await run("insights", "abc"), /Usage/);
 });

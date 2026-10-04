@@ -166,6 +166,14 @@ export const ConfigSchema = z.object({
       include_sensitive: z.boolean().default(false),
     })
     .default({}),
+  insights: z
+    .object({
+      /** If set, `serve` sends a period-over-period review to Telegram on this schedule, e.g. "0 18 * * 0" (Sunday 18:00). */
+      cron: z.string().default(""),
+      days: z.number().int().min(1).max(366).default(7),
+      include_sensitive: z.boolean().default(false),
+    })
+    .default({}),
   retention: z
     .object({
       streams: z.record(z.string()).default({}),
