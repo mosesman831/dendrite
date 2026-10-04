@@ -435,6 +435,18 @@ MCP: `recall` (markdown context pack, ready to drop into an agent prompt) and `e
 
 If API keys are configured, click **Key** to save one in this browser (localStorage). It's sent as a Bearer header, including on the live stream, which uses fetch rather than EventSource so the header can be sent.
 
+### Phone receivers (continuous capture)
+
+Point an always-on phone logger straight at Dendrite; no glue code is needed. Phone apps often can't set an `Authorization` header, so these routes also accept `?token=`. Use a write-scoped key.
+
+| App | URL | Records |
+| --- | --- | --- |
+| [OwnTracks](https://owntracks.org) (HTTP mode) | `POST /v1/receivers/owntracks?token=…` | `location/point` fixes, plus `enter`/`leave` region transitions as events like "Arrived at Office" |
+| [Overland](https://overland.p3k.app) | `POST /v1/receivers/overland?token=…` | `location/point`, with motion types as tags |
+| [Health Auto Export](https://www.healthyapps.dev) (REST API automation) | `POST /v1/receivers/health-auto-export?token=…` | One `health/<metric>` event per sample, plus `health/workout`. All are marked sensitive |
+
+Each receiver replies in the format its app expects. Retries and overlapping batches are de-duplicated by external id. Location fixes then feed `/where`, stays and the timeline.
+
 ### Insights
 
 `dendrite insights [--days 7] [--to DATE] [--sensitive]` compares a window with the period of the same length just before it:

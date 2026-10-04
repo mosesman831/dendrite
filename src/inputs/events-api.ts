@@ -1,6 +1,7 @@
 import express, { type Express, type Request, type Response } from "express";
 import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
 import { computeInsights, renderInsights } from "../events/insights.js";
+import { RECEIVERS } from "../events/receivers.js";
 import { listPeople, renderPeople } from "../events/people.js";
 import { statSync } from "node:fs";
 import type { DendriteConfig } from "../config.js";
@@ -99,6 +100,22 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
     const report = ingestEvents(store, raws, opts);
     const status = report.rejected.length && !report.accepted && !report.duplicates ? 400 : 200;
     res.status(status).json({ ok: status === 200, ...report });
+  });
+
+  // Phone loggers often can't set headers; accept ?token= for these routes only.
+  app.post("/v1/receivers/:kind", express.json({ limit: config.http.max_body }), (req, res) => {
+    const r = RECEIVERS[req.params.kind as keyof typeof RECEIVERS];
+    if (!r) {
+      res.status(404).json({ error: `unknown receiver; use one of ${Object.keys(RECEIVERS).join(", ")}` });
+      return;
+    }
+    const t = typeof req.query.token === "string" ? req.query.token : undefined;
+    if (!req.headers.authorization && t) req.headers.authorization = `Bearer ${t}`;
+    if (!guard(req, res, "write")) return;
+    const events = r.parse(req.body);
+    const report = ingestEvents(store, events, opts);
+    if (report.rejected.length) console.error(`[receiver:${req.params.kind}] rejected ${report.rejected.length}`);
+    res.json(r.reply());
   });
 
   app.post(
