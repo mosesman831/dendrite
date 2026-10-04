@@ -152,6 +152,16 @@ export const ConfigSchema = z.object({
       cron: z.string().default(""),
     })
     .default({}),
+  brief: z
+    .object({
+      /** If set, `serve` sends the briefing to Telegram (allowed_user_ids) on this schedule, e.g. "0 7 * * *". */
+      cron: z.string().default(""),
+      agenda_streams: z.array(z.string()).default(["calendar"]),
+      soon_days: z.number().int().min(0).max(30).default(3),
+      lookback_years: z.number().int().min(0).max(30).default(5),
+      include_sensitive: z.boolean().default(false),
+    })
+    .default({}),
   retention: z
     .object({
       streams: z.record(z.string()).default({}),

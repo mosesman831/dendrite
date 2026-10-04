@@ -13,6 +13,7 @@ import { CronJob } from "cron";
 import { compileTriggers, startTriggers } from "../events/triggers.js";
 import { embedPendingEvents, eventEmbeddingsConfig, providerEmbedFn } from "../events/semantic.js";
 import { ingestOptionsFromConfig } from "../events/ingest.js";
+import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
 import { startTelegramBot, runQueueWorker } from "../inputs/telegram.js";
 import {
   scheduleDailyPrompt,
@@ -143,6 +144,35 @@ export async function runServe(opts: { config?: string }): Promise<void> {
         });
       }
     });
+  }
+
+  if (config.brief.cron) {
+    new CronJob(
+      config.brief.cron,
+      async () => {
+        try {
+          const today = localDate(new Date().toISOString(), config.vault.timezone);
+          const text = renderBriefing(buildBriefing(ctx.index.events, today, briefOptionsFromConfig(config)));
+          const token = process.env[config.inputs.telegram.tokenEnv];
+          if (!token || !chatIds.length) {
+            console.log(`[brief]\n${text}`);
+            return;
+          }
+          for (const chatId of chatIds)
+            await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ chat_id: chatId, text: text.slice(0, 4000) }),
+            });
+        } catch (e) {
+          console.error(`[brief] ${(e as Error).message}`);
+        }
+      },
+      null,
+      true,
+      config.vault.timezone,
+    );
+    console.log(`  Morning briefing: ${config.brief.cron}`);
   }
 
   console.log("Dendrite serve started");

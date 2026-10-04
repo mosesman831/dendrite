@@ -5,6 +5,7 @@ import { embedPendingEvents, eventEmbeddingsConfig, providerEmbedFn, recallHybri
 import { localDate, normalizeTime } from "../events/time.js";
 import { listLoops, renderLoops, setLoopStatus, LOOP_STATUSES, type LoopStatus } from "../events/loops.js";
 import { eventSummary } from "../events/timeline.js";
+import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
 
 export async function runRecall(
   query: string | undefined,
@@ -113,6 +114,19 @@ export async function runLoopSet(id: string, status: string, until: string | und
       console.error(`No loop ${id}`);
       process.exitCode = 1;
     } else console.log(`${l.id} → ${l.status}${l.snooze_until ? ` until ${l.snooze_until}` : ""}: ${l.text}`);
+  } finally {
+    index.close();
+  }
+}
+
+export async function runBrief(opts: { config?: string; date?: string; json?: boolean }): Promise<void> {
+  const { config } = loadConfig(opts.config);
+  const index = new DendriteIndex(config.index.db_path);
+  try {
+    const date = opts.date ?? localDate(new Date().toISOString(), config.vault.timezone);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("--date must be YYYY-MM-DD");
+    const b = buildBriefing(index.events, date, briefOptionsFromConfig(config));
+    console.log(opts.json ? JSON.stringify(b, null, 2) : renderBriefing(b));
   } finally {
     index.close();
   }

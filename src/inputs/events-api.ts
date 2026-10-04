@@ -1,4 +1,5 @@
 import express, { type Express, type Request, type Response } from "express";
+import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
 import { statSync } from "node:fs";
 import type { DendriteConfig } from "../config.js";
 import type { DendriteIndex } from "../pipeline/index.js";
@@ -238,6 +239,18 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
     } catch (e) {
       res.status(400).json({ error: (e as Error).message });
     }
+  });
+
+  app.get("/v1/brief", (req, res) => {
+    if (!guard(req, res)) return;
+    const date = str(req.query.date) ?? localDate(new Date().toISOString(), config.vault.timezone);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      res.status(400).json({ error: "date must be YYYY-MM-DD" });
+      return;
+    }
+    const b = buildBriefing(store, date, briefOptionsFromConfig(config));
+    if (req.query.format === "markdown") res.type("text/markdown").send(renderBriefing(b));
+    else res.json(b);
   });
 
   app.get("/v1/loops", (req, res) => {

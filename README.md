@@ -435,6 +435,19 @@ MCP: `recall` (markdown context pack, ready to drop into an agent prompt) and `e
 
 If API keys are configured, click **Key** to save one in this browser (localStorage). It's sent as a Bearer header, including on the live stream, which uses fetch rather than EventSource so the header can be sent.
 
+### Morning briefing
+
+`dendrite brief [--date YYYY-MM-DD]` gives you the day at a glance:
+- **Today:** your agenda, from the streams in `brief.agenda_streams` (default `calendar`).
+- **Open loops**, grouped as overdue, due today, and coming up in the next `brief.soon_days` days.
+- **Yesterday:** stream counts and highlights.
+- **On this day:** highlights from the same date in each of the past `brief.lookback_years` years.
+
+It is deterministic and needs no LLM.
+- HTTP: `GET /v1/brief?date=&format=markdown`. MCP: the `briefing` tool, a good first call for an agent.
+- Set `brief.cron: "0 7 * * *"` and `serve` sends it to your Telegram `allowed_user_ids` every morning. Without Telegram it is logged instead.
+- Sensitive events are left out unless you set `brief.include_sensitive: true`. Secret events are never included.
+
 ### Open loops
 
 Commitments and todos in your events are tracked automatically. Dendrite picks up phrases like "I'll…", "need to…", "remind me to…", "follow up with…", "TODO: …" and `- [ ]` checkboxes. Relative due dates are resolved against the event's date: "tomorrow", "by friday", "in 3 days", "next week", or an ISO date.
