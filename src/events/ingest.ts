@@ -1,3 +1,4 @@
+import { trackLoops, type LoopOptions } from "./loops.js";
 import { EventInputSchema, MAX_DATA_BYTES, MAX_TEXT_BYTES, type EventInput, type EventRecord, type IngestReport, type PrivacyLevel } from "./types.js";
 import { normalizeTime } from "./time.js";
 import { contentHash, eventId } from "./ids.js";
@@ -22,6 +23,8 @@ export interface IngestOptions {
   streamWeights: Record<string, number>;
   maxBatch: number;
   now?: () => Date;
+  /** When set, commitments/todos in new events are tracked as open loops. */
+  loops?: LoopOptions;
 }
 
 export function ingestOptionsFromConfig(config: DendriteConfig): IngestOptions {
@@ -32,6 +35,9 @@ export function ingestOptionsFromConfig(config: DendriteConfig): IngestOptions {
     streamPrivacy: config.privacy.streams,
     streamWeights: { ...DEFAULT_STREAM_WEIGHTS, ...config.events.stream_weights },
     maxBatch: config.events.max_batch,
+    loops: config.loops?.enabled
+      ? { exclude: config.loops.exclude_streams, autoResolve: config.loops.auto_resolve, timezone: config.vault?.timezone }
+      : undefined,
   };
 }
 
@@ -137,6 +143,13 @@ export function ingestEvents(store: EventStore, raws: unknown[], opts: IngestOpt
     });
   });
   tx();
+  if (opts.loops && fresh.length) {
+    try {
+      trackLoops(store, fresh, opts.loops);
+    } catch {
+      /* loop tracking is derived data; never fail ingestion */
+    }
+  }
   store.bus.publish(fresh);
   return report;
 }

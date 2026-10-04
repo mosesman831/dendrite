@@ -6,6 +6,7 @@ import { ingestEvents, ingestOptionsFromConfig, parseNdjson } from "../events/in
 import type { EventQuery, PrivacyLevel } from "../events/types.js";
 import { normalizeTime, localDate } from "../events/time.js";
 import { entityProfile } from "../events/recall.js";
+import { listLoops, renderLoops, setLoopStatus, LOOP_STATUSES, type LoopStatus } from "../events/loops.js";
 import { recallHybrid } from "../events/semantic.js";
 import type { EmbeddingsConfig } from "../config.js";
 import type { EventRecord } from "../events/types.js";
@@ -234,6 +235,35 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
       }, emb, { semantic: s("semantic") !== "0" && s("semantic") !== "false" });
       if (s("format") === "markdown") res.type("text/markdown").send(pack.markdown);
       else res.json(pack);
+    } catch (e) {
+      res.status(400).json({ error: (e as Error).message });
+    }
+  });
+
+  app.get("/v1/loops", (req, res) => {
+    if (!guard(req, res)) return;
+    const qs = req.query as Record<string, unknown>;
+    const status = typeof qs.status === "string" ? qs.status : "active";
+    if (![...LOOP_STATUSES, "all", "active"].includes(status)) {
+      res.status(400).json({ error: "bad status" });
+      return;
+    }
+    const loops = listLoops(store, { status: status as LoopStatus, limit: typeof qs.limit === "string" ? Number(qs.limit) : undefined });
+    if (qs.format === "markdown") res.type("text/markdown").send(renderLoops(loops, localDate(new Date().toISOString(), config.vault.timezone)));
+    else res.json({ loops });
+  });
+
+  app.patch("/v1/loops/:id", (req, res) => {
+    if (!guard(req, res, "write")) return;
+    const b = (req.body ?? {}) as { status?: string; snooze_until?: string };
+    if (!b.status || !(LOOP_STATUSES as readonly string[]).includes(b.status)) {
+      res.status(400).json({ error: `status must be one of ${LOOP_STATUSES.join(", ")}` });
+      return;
+    }
+    try {
+      const l = setLoopStatus(store, req.params.id, b.status as LoopStatus, b.snooze_until ? normalizeTime(b.snooze_until) ?? undefined : undefined);
+      if (!l) res.status(404).json({ error: "unknown loop" });
+      else res.json(l);
     } catch (e) {
       res.status(400).json({ error: (e as Error).message });
     }

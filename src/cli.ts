@@ -19,7 +19,7 @@ import { startMcpServer } from "./mcp/server.js";
 import { runRecord } from "./commands/record.js";
 import { runTimeline, runDigest } from "./commands/timeline.js";
 import { runImport } from "./commands/import.js";
-import { runRecall, runWho, runEmbedEvents } from "./commands/recall.js";
+import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet } from "./commands/recall.js";
 import { runTriggersTest } from "./commands/triggers.js";
 import { runPrune, runExport, runBackup } from "./commands/ops.js";
 
@@ -100,6 +100,21 @@ program
   .option("--no-semantic", "Disable hybrid vector matching (FTS only)")
   .option("--json", "Machine-readable output")
   .action(runRecall);
+
+program
+  .command("loops")
+  .description("Open loops: commitments/todos detected in your events (auto-closed when you report them done)")
+  .option("-c, --config <path>", "Config file path")
+  .option("--status <s>", "active (default) | open | snoozed | done | dropped | all")
+  .option("-n, --limit <n>", "Max loops")
+  .option("--json", "Machine-readable output")
+  .action(runLoops);
+
+program
+  .command("loop <id> <status> [until]")
+  .description("Set a loop's status: done | dropped | open | snoozed <until>")
+  .option("-c, --config <path>", "Config file path")
+  .action(runLoopSet);
 
 program
   .command("embed-events")

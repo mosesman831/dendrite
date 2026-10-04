@@ -83,6 +83,25 @@ CREATE TABLE IF NOT EXISTS event_embeddings (
 );
 `,
   },
+  {
+    version: 3,
+    sql: `
+CREATE TABLE IF NOT EXISTS open_loops (
+  id TEXT PRIMARY KEY,
+  event_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  due_date TEXT,
+  status TEXT NOT NULL DEFAULT 'open',
+  snooze_until TEXT,
+  privacy TEXT NOT NULL DEFAULT 'normal',
+  stream TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  resolved_at TEXT,
+  resolved_by TEXT
+);
+CREATE INDEX IF NOT EXISTS open_loops_status ON open_loops(status, due_date);
+`,
+  },
 ];
 
 const PRIVACY_UP_TO: Record<string, string[]> = {

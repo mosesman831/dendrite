@@ -10,6 +10,7 @@ import { answerQuestion } from "../pipeline/answer.js";
 import { FRONTMATTER_CONTRACT } from "../types.js";
 import matter from "gray-matter";
 import { entityProfile } from "../events/recall.js";
+import { listLoops, renderLoops, setLoopStatus } from "../events/loops.js";
 import { eventEmbeddingsConfig, recallHybrid } from "../events/semantic.js";
 import { ingestEvents, ingestOptionsFromConfig } from "../events/ingest.js";
 import { normalizeTime, localDate } from "../events/time.js";
@@ -171,6 +172,24 @@ export async function startMcpServer(configPath?: string): Promise<void> {
       return a.format === "json" ? json(pack) : { content: [{ type: "text" as const, text: pack.markdown }] };
     },
   );
+
+  server.tool(
+    "open_loops",
+    "Commitments/todos the user mentioned (\"I'll…\", \"remind me to…\", \"- [ ] …\") that are not done yet, soonest due first. Use to surface what they still owe or planned.",
+    { status: z.enum(["active", "open", "snoozed", "done", "dropped", "all"]).optional(), limit: z.number().int().min(1).max(500).optional(), format: z.enum(["markdown", "json"]).optional() },
+    async (a) => {
+      const loops = listLoops(index.events, { status: a.status ?? "active", limit: a.limit, maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal" });
+      return a.format === "json" ? json(loops) : { content: [{ type: "text" as const, text: renderLoops(loops, localDate(new Date().toISOString(), config.vault.timezone)) }] };
+    },
+  );
+
+  if (config.mcp.allow_writes)
+    server.tool(
+      "update_loop",
+      "Mark an open loop done/dropped/open, or snooze it until a time",
+      { id: z.string(), status: z.enum(["open", "snoozed", "done", "dropped"]), snooze_until: z.string().optional() },
+      async (a) => json(setLoopStatus(index.events, a.id, a.status, a.snooze_until) ?? { error: "unknown loop" }),
+    );
 
   server.tool(
     "entity_profile",
