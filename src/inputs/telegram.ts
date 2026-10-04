@@ -15,7 +15,7 @@ import { undoCapture, resolveUndoTarget } from "../pipeline/remove.js";
 import { previewSort, runSort, formatSortPreviewTelegram } from "../commands/sort.js";
 import { answerQuestion } from "../pipeline/answer.js";
 import type { Context } from "grammy";
-import { LIFE_COMMANDS, lifeCommand, logTelegramMessage } from "./telegram-life.js";
+import { LIFE_COMMANDS, lifeCommand } from "./telegram-life.js";
 import { eventEmbeddingsConfig } from "../events/semantic.js";
 
 const pendingSorts = new Map<number, { scope: "all" | "inbox" | "imports"; at: number }>();
@@ -157,13 +157,6 @@ export async function startTelegramBot(
     const text = c.message.text;
     if (!text || text.startsWith("/")) return;
 
-    if (config.inputs.telegram.log_events) {
-      try {
-        logTelegramMessage(ctx.index.events, config, { text, chatId: c.chat.id, messageId: c.message.message_id, date: c.message.date });
-      } catch (err) {
-        console.error("telegram event-log error:", err instanceof Error ? err.message : String(err));
-      }
-    }
 
     const dump: Dump = {
       id: `tg-${c.message.message_id}`,
