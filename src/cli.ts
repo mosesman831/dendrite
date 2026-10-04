@@ -19,7 +19,7 @@ import { startMcpServer } from "./mcp/server.js";
 import { runRecord } from "./commands/record.js";
 import { runTimeline, runDigest } from "./commands/timeline.js";
 import { runImport } from "./commands/import.js";
-import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights, runPeople } from "./commands/recall.js";
+import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights, runPeople, runPlaces } from "./commands/recall.js";
 import { runTriggersTest } from "./commands/triggers.js";
 import { runPrune, runExport, runBackup } from "./commands/ops.js";
 
@@ -142,6 +142,14 @@ program
   .option("--sensitive", "Include sensitive events")
   .option("--json", "Machine-readable output")
   .action(runPeople);
+
+program
+  .command("places")
+  .description("Named places (config `places:`) with event counts; --backfill tags existing geo events")
+  .option("-c, --config <path>", "Config file path")
+  .option("--backfill", "Tag already-stored geo events that fall inside a configured place")
+  .option("--json", "Machine-readable output")
+  .action(runPlaces);
 
 program
   .command("embed-events")

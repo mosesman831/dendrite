@@ -5,6 +5,7 @@ import { listLoops, renderLoops, setLoopStatus, type LoopStatus } from "../event
 import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
 import { computeInsights, renderInsights } from "../events/insights.js";
 import { listPeople, renderPeople } from "../events/people.js";
+import { matchPlace } from "../events/places.js";
 import { recallHybrid } from "../events/semantic.js";
 import { summarizeDay, renderTimelineText, eventSummary } from "../events/timeline.js";
 import { localDate, localTime, normalizeTime } from "../events/time.js";
@@ -104,7 +105,8 @@ export async function lifeCommand(d: LifeDeps, cmd: string, arg: string): Promis
       const e = store.query({ stream: ["location", "movement"], maxPrivacy: "normal", limit: 1, order: "desc" }).events[0];
       if (!e) return "No location recorded yet.";
       const coords = e.lat != null && e.lon != null ? ` (${e.lat.toFixed(4)}, ${e.lon.toFixed(4)})` : "";
-      return `${localDate(e.occurred_at, tz)} ${localTime(e.occurred_at, tz)} — ${eventSummary(e)}${coords}`;
+      const place = matchPlace(e.lat, e.lon, config.places);
+      return `${localDate(e.occurred_at, tz)} ${localTime(e.occurred_at, tz)} — ${place ? `at ${place.name} · ` : ""}${eventSummary(e)}${coords}`;
     }
     default:
       return `Unknown command /${cmd}`;

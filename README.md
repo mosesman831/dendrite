@@ -447,6 +447,16 @@ Point an always-on phone logger straight at Dendrite; no glue code is needed. Ph
 
 Each receiver replies in the format its app expects. Retries and overlapping batches are de-duplicated by external id. Location fixes then feed `/where`, stays and the timeline.
 
+### Named places
+
+```yaml
+places:
+  - { name: Home, lat: 51.5007, lon: -0.1246, radius_m: 120, privacy: sensitive }
+  - { name: Office, lat: 51.5202, lon: -0.0805 }
+```
+
+Any event with coordinates inside a place's radius gets the place as an entity and an `at:<slug>` tag. That covers receiver fixes, GPX and Takeout imports. The default radius is 150 m, and the nearest place wins. If the place sets `privacy`, the event's privacy is raised to at least that level. Places then show up in `recall`, `people`, insights, `/where` ("at Home · …") and the timeline. `dendrite places` lists visit counts. Use `dendrite places --backfill` to tag events stored before you added a place.
+
 ### Insights
 
 `dendrite insights [--days 7] [--to DATE] [--sensitive]` compares a window with the period of the same length just before it:

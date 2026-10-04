@@ -166,6 +166,18 @@ export const ConfigSchema = z.object({
       include_sensitive: z.boolean().default(false),
     })
     .default({}),
+  /** Named geofences: geo events inside one gain the place as an entity + `at:<slug>` tag. */
+  places: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        lat: z.number().min(-90).max(90),
+        lon: z.number().min(-180).max(180),
+        radius_m: z.number().positive().default(150),
+        privacy: z.enum(["normal", "sensitive", "secret"]).optional(),
+      }),
+    )
+    .default([]),
   insights: z
     .object({
       /** If set, `serve` sends a period-over-period review to Telegram on this schedule, e.g. "0 18 * * 0" (Sunday 18:00). */
