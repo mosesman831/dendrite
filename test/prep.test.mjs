@@ -5,7 +5,7 @@ import { dist } from "./helpers.mjs";
 
 const { EventStore } = await dist("events/store.js");
 const { ingestEvents, DEFAULT_INGEST_OPTIONS } = await dist("events/ingest.js");
-const { buildPrep, renderPrep } = await dist("events/prep.js");
+const { buildPrep, renderPrep, dueNudges } = await dist("events/prep.js");
 
 test("meeting prep: next meeting's people with history + open loops; nothing → message", () => {
   const store = new EventStore(new Database(":memory:"));
@@ -30,4 +30,21 @@ test("meeting prep: next meeting's people with history + open loops; nothing →
   assert.match(md, /## Ines/);
   assert.match(md, /- \[ \] .*budget draft/);
   assert.equal(buildPrep(store, { now, eventId: "nope" }).meeting, null);
+});
+
+test("dueNudges: once per entry within the window; privacy respected for explicit ids", () => {
+  const store = new EventStore(new Database(":memory:"));
+  ingestEvents(store, [
+    { stream: "calendar", kind: "event", text: "Call with Oscar", occurred_at: "2026-10-05T10:10:00Z", entities: ["Oscar"] },
+    { stream: "calendar", kind: "event", text: "Therapy", occurred_at: "2026-10-05T10:12:00Z", privacy: "secret" },
+    { stream: "calendar", kind: "event", text: "Dinner with Ines", occurred_at: "2026-10-05T19:00:00Z", entities: ["Ines"] },
+  ], DEFAULT_INGEST_OPTIONS);
+  const sent = new Set();
+  const now = "2026-10-05T10:00:00Z";
+  const first = dueNudges(store, { now, minutes: 15, sent });
+  assert.equal(first.length, 1);
+  assert.match(first[0].meeting.summary, /Oscar/);
+  assert.equal(dueNudges(store, { now, minutes: 15, sent }).length, 0);
+  const secret = store.query({ stream: "calendar", maxPrivacy: "secret", q: "Therapy" }).events[0];
+  assert.equal(buildPrep(store, { now, eventId: secret.id }).meeting, null);
 });

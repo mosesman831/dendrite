@@ -17,6 +17,7 @@ import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events
 import { computeInsights, renderInsights } from "../events/insights.js";
 import { deriveLiveStays } from "../events/stays.js";
 import { syncCalendar } from "../events/calendars.js";
+import { dueNudges, renderPrep } from "../events/prep.js";
 import { startTelegramBot, runQueueWorker } from "../inputs/telegram.js";
 import {
   scheduleDailyPrompt,
@@ -193,6 +194,26 @@ export async function runServe(opts: { config?: string }): Promise<void> {
       ),
     );
     console.log(`  Weekly review: ${config.insights.cron}`);
+  }
+  if (config.prep?.nudge_minutes) {
+    const sent = new Set<string>();
+    const minutes = config.prep.nudge_minutes;
+    const tick = () => {
+      try {
+        for (const p of dueNudges(ctx.index.events, {
+          minutes,
+          sent,
+          aliases: config.aliases,
+          maxPrivacy: config.prep.include_sensitive ? "sensitive" : "normal",
+        }))
+          void deliver("prep", renderPrep(p, config.vault.timezone)).catch((e) => console.error(`[prep] ${(e as Error).message}`));
+      } catch (e) {
+        console.error(`[prep] ${(e as Error).message}`);
+      }
+    };
+    tick();
+    setInterval(tick, 60_000).unref();
+    console.log(`  Meeting prep: ${minutes} min before each calendar entry`);
   }
   if (config.events.enabled && config.stays?.live) {
     const s = config.stays;
