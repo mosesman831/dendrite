@@ -455,6 +455,16 @@ calendars:
 
 `serve` syncs each calendar at startup and then every `interval_min`; `dendrite calendar-sync` runs it once. The URL is read from the env var and never logged. Events are deduplicated by VEVENT UID (namespaced by calendar name). When a calendar event is edited (rescheduled, renamed or moved), the stored event is updated in place, keeping its id, and is re-distilled.
 
+**Feed subscriptions.** Anything that publishes RSS or Atom becomes a continuous source: Letterboxd diary, Goodreads shelves, YouTube channel/likes, last.fm, Strava, your own blog.
+
+```yaml
+feeds:
+  - { name: letterboxd, url: "https://letterboxd.com/<you>/rss/", stream: media }
+  - { name: goodreads, url_env: GOODREADS_RSS, stream: reading, interval_min: 180 }
+```
+
+`serve` polls each feed (default every 60 min); `dendrite feed-sync` runs it once. Each item becomes a `<stream>/item` event (default stream `feed`) with the title and plain-text summary. Items are deduplicated by guid, falling back to the link. Feeds are append-only.
+
 Each receiver replies in the format its app expects. Retries and overlapping batches are de-duplicated by external id. Location fixes then feed `/where`, stays and the timeline.
 
 ### Entity aliases

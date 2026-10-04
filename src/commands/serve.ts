@@ -17,6 +17,7 @@ import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events
 import { computeInsights, renderInsights } from "../events/insights.js";
 import { deriveLiveStays } from "../events/stays.js";
 import { syncCalendar } from "../events/calendars.js";
+import { syncFeed } from "../events/feeds.js";
 import { dueFollowups, dueNudges, renderFollowup, renderPrep } from "../events/prep.js";
 import { startTelegramBot, runQueueWorker } from "../inputs/telegram.js";
 import {
@@ -247,7 +248,15 @@ export async function runServe(opts: { config?: string }): Promise<void> {
   }
 
   if (config.events.enabled) {
-    for (const c of config.calendars ?? []) {
+    for (const f of config.feeds ?? []) {
+    const tick = () =>
+      syncFeed(ctx.index.events, f, ingestOptionsFromConfig(config))
+        .then((r) => (r.ok ? r.accepted && console.log(`[feed:${r.name}] +${r.accepted}`) : console.error(`[feed:${r.name}] ${r.error}`)))
+        .catch(() => {});
+    void tick();
+    setInterval(tick, (f.interval_min ?? 60) * 60_000).unref();
+  }
+  for (const c of config.calendars ?? []) {
       const tick = () =>
         syncCalendar(ctx.index.events, c, ingestOptionsFromConfig(config))
           .then((r) => (r.ok ? (r.accepted || r.updated) && console.log(`[calendar:${r.name}] +${r.accepted} ~${r.updated}`) : console.error(`[calendar:${r.name}] ${r.error}`)))

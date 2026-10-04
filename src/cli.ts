@@ -20,7 +20,7 @@ import { runRecord } from "./commands/record.js";
 import { runTimeline, runDigest } from "./commands/timeline.js";
 import { runImport } from "./commands/import.js";
 import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights, runPeople, runPlaces, runSources, runAliases, runEntitiesPrune, runLast, runHabits, runNow, runPrep } from "./commands/recall.js";
-import { runCalendarSync } from "./commands/calendars.js";
+import { runCalendarSync, runFeedSync } from "./commands/calendars.js";
 import { runTriggersTest } from "./commands/triggers.js";
 import { runPrune, runExport, runBackup } from "./commands/ops.js";
 
@@ -222,6 +222,13 @@ program
   .option("--sensitive", "Include sensitive events")
   .option("--json", "Machine-readable output")
   .action(runPrep);
+
+program
+  .command("feed-sync")
+  .description("Pull configured RSS/Atom feeds into the event log once")
+  .option("-c, --config <path>", "Config file path")
+  .option("--json", "Machine-readable output")
+  .action(runFeedSync);
 
 program
   .command("calendar-sync")
