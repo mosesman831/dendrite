@@ -5,7 +5,7 @@ import { dist } from "./helpers.mjs";
 
 const { EventStore } = await dist("events/store.js");
 const { ingestEvents, DEFAULT_INGEST_OPTIONS } = await dist("events/ingest.js");
-const { buildPrep, renderPrep, dueNudges, dueFollowups, renderFollowup, parseFollowupPrompt } = await dist("events/prep.js");
+const { buildPrep, renderPrep, dueNudges, dueFollowups, renderFollowup, parseFollowupPrompt, persistedSent } = await dist("events/prep.js");
 
 test("meeting prep: next meeting's people with history + open loops; nothing → message", () => {
   const store = new EventStore(new Database(":memory:"));
@@ -69,4 +69,15 @@ test("parseFollowupPrompt round-trips renderFollowup; ignores other text", () =>
   const msg = renderFollowup({ summary: "Lunch with Ines (re: grant)", entities: ["Ines", "Sterling Archer"] });
   assert.deepEqual(parseFollowupPrompt(msg), { summary: "Lunch with Ines (re: grant)", entities: ["Ines", "Sterling Archer"] });
   assert.equal(parseFollowupPrompt("Filed under Work"), null);
+});
+
+test("persistedSent survives a restart and stays bounded", () => {
+  const store = new EventStore(new Database(":memory:"));
+  const a = persistedSent(store, "prep", 3);
+  a.add("e1").add("e2");
+  assert.ok(persistedSent(store, "prep", 3).has("e2"));
+  a.add("e3").add("e4");
+  const b = persistedSent(store, "prep", 3);
+  assert.deepEqual([...b], ["e2", "e3", "e4"]);
+  assert.equal(persistedSent(store, "followup").size, 0);
 });

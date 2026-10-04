@@ -119,3 +119,26 @@ export function parseFollowupPrompt(text: string): { summary: string; entities: 
   if (!m) return null;
   return { summary: m[1], entities: m[2].split(",").map((s) => s.trim()).filter(Boolean) };
 }
+
+/** A `sent` set backed by a checkpoint, so nudges/follow-ups aren't repeated after a restart. Keeps the last `max` ids. */
+export function persistedSent(store: EventStore, name: string, max = 500): Set<string> {
+  const key = `sent:${name}`;
+  let ids: string[] = [];
+  try {
+    ids = JSON.parse(store.getCheckpoint(key) ?? "[]") as string[];
+  } catch {
+    ids = [];
+  }
+  const set = new Set<string>(ids);
+  const add = set.add.bind(set);
+  set.add = (id: string) => {
+    if (!set.has(id)) {
+      add(id);
+      const all = [...set];
+      if (all.length > max) for (const old of all.slice(0, all.length - max)) set.delete(old);
+      store.setCheckpoint(key, JSON.stringify([...set]));
+    }
+    return set;
+  };
+  return set;
+}
