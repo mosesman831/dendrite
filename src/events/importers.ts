@@ -3,7 +3,7 @@ import { extname } from "node:path";
 import { parseNdjson } from "./ingest.js";
 import { isTakeoutLocation, parseTakeoutLocation } from "./importers-life.js";
 
-export const IMPORT_FORMATS = ["json", "ndjson", "ics", "gpx", "csv", "git", "apple-health", "takeout-location"] as const;
+export const IMPORT_FORMATS = ["json", "ndjson", "ics", "gpx", "csv", "git", "apple-health", "takeout-location", "browser-history"] as const;
 export type ImportFormat = (typeof IMPORT_FORMATS)[number];
 
 export interface ImportOptions {
@@ -25,6 +25,7 @@ export interface ParsedImport {
 
 export function detectFormat(path: string, content?: string): ImportFormat {
   const ext = extname(path).toLowerCase();
+  if (content?.startsWith("SQLite format 3")) return "browser-history";
   if (ext === ".ics" || ext === ".ical") return "ics";
   if (ext === ".gpx") return "gpx";
   if (ext === ".csv") return "csv";
@@ -295,6 +296,8 @@ export function parseImport(format: ImportFormat, content: string, opts: ImportO
       return parseTakeoutLocation(JSON.parse(content), opts);
     case "apple-health":
       throw new Error("apple-health is streamed; use importPath");
+    case "browser-history":
+      throw new Error("browser-history reads a database file; use readBrowserHistory");
     case "ndjson": {
       const r = parseNdjson(content);
       return { items: r.items, errors: r.errors };

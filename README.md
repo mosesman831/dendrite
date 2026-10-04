@@ -392,6 +392,7 @@ dendrite import health.csv -s health -k daily   # any CSV with a date/time colum
 dendrite import ~/code/myrepo            # git log → git/commit (sha-deduped)
 dendrite import export.ndjson            # raw events
 dendrite import export.xml --since 2025-01-01 --types step_count,heart_rate   # Apple Health (streamed; multi-GB OK)
+dendrite import ~/Library/Application\ Support/Google/Chrome/Default/History --since 2026-01-01   # Chrome/Edge/Brave, Firefox places.sqlite, Safari History.db
 dendrite import Records.json --stays     # Google Takeout location (Records / Semantic History / on-device Timeline) + derived stays
 ```
 
@@ -416,6 +417,8 @@ dendrite recall --entity Ada --from 2026-09-01
 dendrite recall --at "2026-10-01 10:00" -w 30   # everything that happened around then
 dendrite who Ada                            # first/last seen, streams, co-mentioned entities, recent events
 ```
+
+Live feed: `GET /v1/stream` (Server-Sent Events) pushes each new event as it's committed. Filters: `stream=a,b`, `kind=`, `min_importance=`, `include_sensitive=1`. Pass `since=<time>` or the standard `Last-Event-ID` header to replay what you missed, so agents can react in real time and pick up where they left off. Secret events are never streamed.
 
 HTTP: `GET /v1/recall?q=&entity=&at=&window=&context=&format=markdown`, `GET /v1/entities/:name`.
 MCP: `recall` (markdown context pack, ready to drop into an agent prompt) and `entity_profile`. Sensitive events are only exposed over MCP when `mcp.include_sensitive: true`.

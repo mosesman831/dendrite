@@ -6,6 +6,7 @@ import { ingestEvents, ingestOptionsFromConfig, parseNdjson } from "../events/in
 import type { EventQuery, PrivacyLevel } from "../events/types.js";
 import { normalizeTime, localDate } from "../events/time.js";
 import { recall, entityProfile } from "../events/recall.js";
+import type { EventRecord } from "../events/types.js";
 import { authorize, resolveApiKeys, type Scope } from "./http-security.js";
 import { renderDigestMarkdown, summarizeDay, summarizeWeek } from "../events/timeline.js";
 
@@ -117,6 +118,53 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
       return;
     }
     res.json(store.query({ ...q, maxPrivacy }));
+  });
+
+  app.get("/v1/stream", (req, res) => {
+    if (!guard(req, res)) return;
+    const qs = req.query as Record<string, unknown>;
+    const list = (k: string) => (typeof qs[k] === "string" && qs[k] ? (qs[k] as string).split(",") : undefined);
+    const streams = list("stream");
+    const kinds = list("kind");
+    const minImp = typeof qs.min_importance === "string" ? Number(qs.min_importance) : 0;
+    const allowSensitive = qs.include_sensitive === "1" || qs.include_sensitive === "true";
+    const match = (e: EventRecord) =>
+      e.privacy !== "secret" &&
+      (allowSensitive || e.privacy === "normal") &&
+      (!streams || streams.includes(e.stream)) &&
+      (!kinds || kinds.includes(e.kind)) &&
+      e.importance >= minImp;
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
+    const send = (e: EventRecord) => res.write(`id: ${e.id}\nevent: event\ndata: ${JSON.stringify(e)}\n\n`);
+    res.write(`retry: 3000\n: connected\n\n`);
+    const since = typeof qs.since === "string" ? normalizeTime(qs.since) : null;
+    const lastId = req.headers["last-event-id"];
+    if (since || typeof lastId === "string") {
+      const replayFrom = since ?? (typeof lastId === "string" ? store.get(lastId)?.received_at : undefined);
+      if (replayFrom) {
+        const rows = store.db
+          .prepare(`SELECT id FROM events WHERE received_at > ? ORDER BY received_at, id LIMIT 1000`)
+          .all(replayFrom) as Array<{ id: string }>;
+        for (const r of rows) {
+          const e = store.get(r.id);
+          if (e && match(e)) send(e);
+        }
+      }
+    }
+    const off = store.bus.subscribe((e) => {
+      if (match(e)) send(e);
+    });
+    const hb = setInterval(() => res.write(`: ping\n\n`), 25_000);
+    hb.unref();
+    req.on("close", () => {
+      clearInterval(hb);
+      off();
+    });
   });
 
   app.get("/v1/events/:id", (req, res) => {

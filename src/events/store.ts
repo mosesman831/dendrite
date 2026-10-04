@@ -1,3 +1,4 @@
+import { EventBus } from "./bus.js";
 import type Database from "better-sqlite3";
 import type {
   EventPage,
@@ -162,6 +163,7 @@ export function toFtsQuery(q: string): string | null {
 
 export class EventStore {
   readonly db: Database.Database;
+  readonly bus = new EventBus();
 
   constructor(db: Database.Database) {
     this.db = db;
