@@ -9,6 +9,9 @@ import { smartSearch } from "../pipeline/search.js";
 import { answerQuestion } from "../pipeline/answer.js";
 import { FRONTMATTER_CONTRACT } from "../types.js";
 import matter from "gray-matter";
+import { ingestEvents, ingestOptionsFromConfig } from "../events/ingest.js";
+import { normalizeTime, localDate } from "../events/time.js";
+import { summarizeDay, summarizeWeek, renderDigestMarkdown } from "../events/timeline.js";
 
 export async function startMcpServer(configPath?: string): Promise<void> {
   const { config, configDir, llm } = loadConfig(configPath);
@@ -69,6 +72,75 @@ export async function startMcpServer(configPath?: string): Promise<void> {
         ],
       };
     },
+  );
+
+  const json = (v: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(v, null, 2) }] });
+
+  server.tool(
+    "record_event",
+    "Append a real-world event to the lossless event log (location, health, chat, note, ...). Deduped by content or external_id.",
+    {
+      stream: z.string(),
+      kind: z.string(),
+      text: z.string().optional(),
+      data: z.record(z.unknown()).optional(),
+      occurred_at: z.string().optional(),
+      ended_at: z.string().optional(),
+      external_id: z.string().optional(),
+      source: z.string().optional(),
+      tags: z.array(z.string()).optional(),
+      importance: z.number().min(0).max(1).optional(),
+    },
+    async (args) => json(ingestEvents(index.events, [{ ...args, source: args.source ?? "mcp" }], ingestOptionsFromConfig(config))),
+  );
+
+  server.tool(
+    "query_events",
+    "Query the event log by time range, stream, kind, entity, or full-text. Returns newest first with a cursor.",
+    {
+      from: z.string().optional(),
+      to: z.string().optional(),
+      stream: z.string().optional(),
+      kind: z.string().optional(),
+      entity: z.string().optional(),
+      q: z.string().optional(),
+      limit: z.number().int().min(1).max(200).optional(),
+      cursor: z.string().optional(),
+      order: z.enum(["asc", "desc"]).optional(),
+    },
+    async (a) => {
+      const from = a.from ? normalizeTime(a.from) : undefined;
+      const to = a.to ? normalizeTime(a.to) : undefined;
+      if (from === null || to === null) return json({ error: "unparseable from/to" });
+      return json(
+        index.events.query({
+          ...a,
+          from,
+          to,
+          stream: a.stream?.includes(",") ? a.stream.split(",") : a.stream,
+          limit: a.limit ?? 50,
+          maxPrivacy: "sensitive",
+        }),
+      );
+    },
+  );
+
+  server.tool(
+    "timeline",
+    "What happened on a given day or week (YYYY-MM-DD, default today): per-stream stats, numeric metrics, top entities, highlights, chronological entries.",
+    { date: z.string().optional(), period: z.enum(["day", "week"]).optional(), format: z.enum(["json", "markdown"]).optional() },
+    async ({ date, period, format }) => {
+      const d = date ?? localDate(new Date().toISOString(), config.vault.timezone);
+      const o = { timezone: config.vault.timezone, maxPrivacy: "sensitive" as const };
+      const s = period === "week" ? summarizeWeek(index.events, d, o) : summarizeDay(index.events, d, o);
+      if (format === "markdown") return { content: [{ type: "text" as const, text: renderDigestMarkdown(s) }] };
+      const { event_ids: _ids, ...rest } = s;
+      return json(rest);
+    },
+  );
+
+  server.tool("event_streams", "List event streams with counts, kinds, and first/last timestamps", {}, async () =>
+    json({ streams: index.events.streams(), total: index.events.count() }),
   );
 
   server.tool("list_compartments", "List brain compartments and note counts", {}, async () => {

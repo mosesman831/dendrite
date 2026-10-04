@@ -17,6 +17,7 @@ import { runAsk } from "./commands/ask.js";
 import { runEval } from "./commands/eval.js";
 import { startMcpServer } from "./mcp/server.js";
 import { runRecord } from "./commands/record.js";
+import { runTimeline, runDigest } from "./commands/timeline.js";
 
 const program = new Command();
 
@@ -64,6 +65,26 @@ program
   .option("--id <externalId>", "External id for idempotent re-sends")
   .option("--json", "Output machine-readable JSON")
   .action(runRecord);
+
+program
+  .command("timeline [date]")
+  .description("Show what happened on a day (or week) from the event log")
+  .option("-c, --config <path>", "Config file path")
+  .option("-w, --week", "Whole ISO week containing the date")
+  .option("-s, --stream <names>", "Comma-separated streams")
+  .option("--no-include-sensitive", "Hide sensitive events")
+  .option("--json", "Machine-readable output")
+  .action(runTimeline);
+
+program
+  .command("digest [date]")
+  .description("Write a deterministic daily/weekly digest note into the vault")
+  .option("-c, --config <path>", "Config file path")
+  .option("-w, --week", "Weekly digest")
+  .option("-d, --days <n>", "Backfill N days ending at date", "1")
+  .option("-s, --stream <names>", "Comma-separated streams")
+  .option("--dry-run", "Print instead of writing")
+  .action(runDigest);
 
 program
   .command("serve")

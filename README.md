@@ -368,6 +368,25 @@ Set `TEST_AUDIO=1` to include optional STT tests.
 
 > If you liked this project, you may like [LatticeAG](https://github.com/LatticeAG) - an agentic AI lab to improve agent-use
 
+## Event log (v0.4 "Continuum")
+
+Dendrite keeps an append-only, lossless **event log** next to the vault. Any device or agent can stream real-world events into it without an LLM. Each event is deduplicated, redacted at rest, entity-tagged, and scored for importance.
+
+```bash
+dendrite record "Lunch with Priya at Dishoom" -s location -k visit --at "2026-10-03 13:00"
+dendrite record -s health -k steps --data '{"count":8123}'
+dendrite timeline yesterday            # what happened (★ = high importance)
+dendrite timeline --week --json
+dendrite digest -d 7                   # write journal/digests/YYYY-MM-DD.md for the last 7 days
+dendrite digest --week
+```
+
+HTTP (bearer = `DENDRITE_WEBHOOK_TOKEN`): `POST /v1/events` (single / array / `{events}`), `POST /v1/events/ndjson`, `GET /v1/events?from&to&stream&kind&entity&q&cursor`, `GET /v1/events/:id`, `DELETE /v1/events/:id`, `GET /v1/streams`, `GET /v1/entities`, `GET /v1/timeline?date&period=week`, `GET /v1/digest?date`.
+
+MCP tools: `record_event`, `query_events`, `timeline`, `event_streams`.
+
+Config: `events.*`, `privacy.{redact_at_rest,rules,custom_rules,streams}`, `digest.{folder,write_empty}`.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

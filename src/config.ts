@@ -130,6 +130,12 @@ export const ConfigSchema = z.object({
       streams: z.record(z.enum(["normal", "sensitive", "secret"])).default({ health: "sensitive" }),
     })
     .default({}),
+  digest: z
+    .object({
+      folder: z.string().default("journal/digests"),
+      write_empty: z.boolean().default(false),
+    })
+    .default({}),
   retention: z
     .object({
       streams: z.record(z.string()).default({}),
