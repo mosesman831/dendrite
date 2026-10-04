@@ -55,3 +55,14 @@ test("/places and /sources", async () => {
   assert.doesNotMatch(s, /No events received/);
   assert.match(s, /\d+ ev/);
 });
+
+test("/who shows profile with open loops", async () => {
+  await run("log", "Remind me to send Marguerite the photos");
+  await run("log", "Dinner with Marguerite and Tomasz");
+  const r = await run("who", "marguerite");
+  assert.match(r, /^Marguerite — 2 event\(s\)/);
+  assert.match(r, /Open loops:\n• send Marguerite the photos/);
+  assert.match(r, /Often with: .*Tomasz/);
+  assert.match(await run("who", "nobody-here"), /Nothing mentions/);
+  assert.match(await run("who"), /Usage/);
+});

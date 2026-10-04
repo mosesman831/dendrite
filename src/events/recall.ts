@@ -231,7 +231,7 @@ export function entityProfile(
 export function resolveEntity(store: EventStore, name: string, aliases?: Record<string, string[]>): string {
   const canon = aliasMap(aliases).get(name.trim().toLowerCase());
   if (canon) return canon;
-  if (store.db.prepare(`SELECT 1 FROM event_entities WHERE entity = ? LIMIT 1`).get(name)) return name;
+  if (store.db.prepare(`SELECT 1 FROM event_entities WHERE entity = ? COLLATE BINARY LIMIT 1`).get(name)) return name;
   const hit = store.db
     .prepare(`SELECT entity, COUNT(*) AS n FROM event_entities WHERE lower(entity) = lower(?) GROUP BY entity ORDER BY n DESC LIMIT 1`)
     .get(name) as { entity: string } | undefined;

@@ -1,5 +1,6 @@
 import { habitStatus, renderHabits } from "../events/habits.js";
 import { lastTime, renderLastTime } from "../events/last.js";
+import { entityProfile } from "../events/recall.js";
 import type { DendriteConfig, EmbeddingsConfig } from "../config.js";
 import type { EventStore } from "../events/store.js";
 import { ingestEvents, ingestOptionsFromConfig } from "../events/ingest.js";
@@ -33,6 +34,7 @@ export const LIFE_COMMANDS = [
   { command: "drop", description: "Drop a loop: /drop <id>" },
   { command: "recall", description: "Search your life log: /recall <query>" },
   { command: "last", description: "When did I last…? /last <thing>" },
+  { command: "who", description: "Person/place profile + open loops: /who <name>" },
   { command: "habits", description: "Habit streaks and what's overdue" },
   { command: "log", description: "Record an event verbatim: /log <text>" },
   { command: "where", description: "Last known location" },
@@ -107,6 +109,20 @@ export async function lifeCommand(d: LifeDeps, cmd: string, arg: string): Promis
     case "last":
       if (!a) return "Usage: /last <thing> — e.g. /last haircut";
       return clip(renderLastTime(lastTime(store, a, { now: nowIso, timezone: tz }), tz));
+    case "who": {
+      if (!a) return "Usage: /who <name>";
+      const p = entityProfile(store, a, { maxPrivacy: "normal", recent: 5, aliases: config.aliases });
+      if (!p.count) return `Nothing mentions “${a}”.`;
+      const lines = [
+        `${p.entity} — ${p.count} event(s), ${localDate(p.first_at!, tz)} → ${localDate(p.last_at!, tz)}`,
+        ...(p.related.length ? [`Often with: ${p.related.slice(0, 5).map((x) => x.entity).join(", ")}`] : []),
+        ...(p.open_loops.length ? ["", "Open loops:", ...p.open_loops.map((l) => `• ${l.text}${l.due_date ? ` (due ${l.due_date})` : ""}`)] : []),
+        "",
+        "Recent:",
+        ...p.recent.map((e) => `• ${localDate(e.occurred_at, tz)} ${eventSummary(e, 120)}`),
+      ];
+      return clip(lines.join("\n"));
+    }
     case "recall": {
       if (!a) return "Usage: /recall <what to look for>";
       const pack = await recallHybrid(store, { q: a, limit: 12, timezone: tz, maxPrivacy: "normal" }, d.emb ?? null);
