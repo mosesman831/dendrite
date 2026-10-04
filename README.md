@@ -444,6 +444,7 @@ Point an always-on phone logger straight at Dendrite; no glue code is needed. Ph
 | [OwnTracks](https://owntracks.org) (HTTP mode) | `POST /v1/receivers/owntracks?token=…` | `location/point` fixes, plus `enter`/`leave` region transitions as events like "Arrived at Office" |
 | [Overland](https://overland.p3k.app) | `POST /v1/receivers/overland?token=…` | `location/point`, with motion types as tags |
 | [Health Auto Export](https://www.healthyapps.dev) (REST API automation) | `POST /v1/receivers/health-auto-export?token=…` | One `health/<metric>` event per sample, plus `health/workout`. All are marked sensitive |
+| GitHub repo/org webhook (content type `application/json`; events: push, pull requests, issues, releases) | `POST /v1/receivers/github?token=…` | `code/commit` per pushed commit, plus `code/pr_opened`, `pr_merged`, `issue_opened`, `release_published`, … Re-deliveries are deduplicated |
 
 Each receiver replies in the format its app expects. Retries and overlapping batches are de-duplicated by external id. Location fixes then feed `/where`, stays and the timeline.
 
