@@ -11,6 +11,7 @@ import { FRONTMATTER_CONTRACT } from "../types.js";
 import matter from "gray-matter";
 import { entityProfile } from "../events/recall.js";
 import { listLoops, renderLoops, setLoopStatus } from "../events/loops.js";
+import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
 import { eventEmbeddingsConfig, recallHybrid } from "../events/semantic.js";
 import { ingestEvents, ingestOptionsFromConfig } from "../events/ingest.js";
 import { normalizeTime, localDate } from "../events/time.js";
@@ -180,6 +181,19 @@ export async function startMcpServer(configPath?: string): Promise<void> {
     async (a) => {
       const loops = listLoops(index.events, { status: a.status ?? "active", limit: a.limit, maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal" });
       return a.format === "json" ? json(loops) : { content: [{ type: "text" as const, text: renderLoops(loops, localDate(new Date().toISOString(), config.vault.timezone)) }] };
+    },
+  );
+
+  server.tool(
+    "briefing",
+    "The user's day at a glance: today's agenda, overdue/due-today/upcoming loops, yesterday's highlights, and what happened on this date in past years. Good first call at the start of a conversation.",
+    { date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), format: z.enum(["markdown", "json"]).optional() },
+    async (a) => {
+      const b = buildBriefing(index.events, a.date ?? localDate(new Date().toISOString(), config.vault.timezone), {
+        ...briefOptionsFromConfig(config),
+        maxPrivacy: config.mcp.include_sensitive ? "sensitive" : "normal",
+      });
+      return a.format === "json" ? json(b) : { content: [{ type: "text" as const, text: renderBriefing(b) }] };
     },
   );
 
