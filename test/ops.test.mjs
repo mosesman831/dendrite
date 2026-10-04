@@ -99,6 +99,9 @@ test("HTTP: health, scopes, headers, rate limit", async () => {
   const auth = { Authorization: "Bearer rtok" };
   const st = await fetch(`${base}/v1/stats`, { headers: auth }).then((r) => r.json());
   assert.equal(st.auth, "keys");
+  const hl = await fetch(`${base}/v1/health`, { headers: auth }).then((r) => r.json());
+  assert.equal(hl.integrity, "skipped");
+  assert.equal(hl.api_open, false);
   const w = await fetch(`${base}/v1/events`, { method: "POST", headers: { ...auth, "Content-Type": "application/json" }, body: "{}" });
   assert.equal(w.status, 403);
   let last;
