@@ -112,3 +112,10 @@ export function dueFollowups(store: EventStore, o: { now?: string; minutes: numb
 export function renderFollowup(f: { summary: string; entities: string[] }): string {
   return `How did "${f.summary}" go? Reply with outcomes or follow-ups (with ${f.entities.slice(0, 3).join(", ")}) — they're logged, and "I'll…" becomes an open loop.`;
 }
+
+/** Inverse of `renderFollowup`: recognises a reply-to prompt so the answer can be linked to the meeting's people. */
+export function parseFollowupPrompt(text: string): { summary: string; entities: string[] } | null {
+  const m = /^How did "(.+)" go\? Reply with outcomes or follow-ups \(with ([^)]*)\)/s.exec(text);
+  if (!m) return null;
+  return { summary: m[1], entities: m[2].split(",").map((s) => s.trim()).filter(Boolean) };
+}

@@ -5,7 +5,7 @@ import { dist } from "./helpers.mjs";
 
 const { EventStore } = await dist("events/store.js");
 const { ingestEvents, DEFAULT_INGEST_OPTIONS } = await dist("events/ingest.js");
-const { buildPrep, renderPrep, dueNudges, dueFollowups, renderFollowup } = await dist("events/prep.js");
+const { buildPrep, renderPrep, dueNudges, dueFollowups, renderFollowup, parseFollowupPrompt } = await dist("events/prep.js");
 
 test("meeting prep: next meeting's people with history + open loops; nothing → message", () => {
   const store = new EventStore(new Database(":memory:"));
@@ -63,4 +63,10 @@ test("dueFollowups: recently ended entries with people, once each", () => {
   assert.deepEqual(f.map((x) => x.entities), [["Oscar"]]);
   assert.match(renderFollowup(f[0]), /How did .*Call with Oscar.* go\?.*Oscar/);
   assert.equal(dueFollowups(store, { now, minutes: 30, sent }).length, 0);
+});
+
+test("parseFollowupPrompt round-trips renderFollowup; ignores other text", () => {
+  const msg = renderFollowup({ summary: "Lunch with Ines (re: grant)", entities: ["Ines", "Sterling Archer"] });
+  assert.deepEqual(parseFollowupPrompt(msg), { summary: "Lunch with Ines (re: grant)", entities: ["Ines", "Sterling Archer"] });
+  assert.equal(parseFollowupPrompt("Filed under Work"), null);
 });

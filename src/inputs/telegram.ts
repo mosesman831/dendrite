@@ -17,6 +17,7 @@ import { answerQuestion } from "../pipeline/answer.js";
 import type { Context } from "grammy";
 import { LIFE_COMMANDS, lifeCommand } from "./telegram-life.js";
 import { eventEmbeddingsConfig } from "../events/semantic.js";
+import { parseFollowupPrompt } from "../events/prep.js";
 
 const pendingSorts = new Map<number, { scope: "all" | "inbox" | "imports"; at: number }>();
 
@@ -163,7 +164,11 @@ export async function startTelegramBot(
       source: "telegram-text",
       receivedAt: new Date(c.message.date * 1000).toISOString(),
       text,
-      meta: { chatId: c.chat.id, userId: c.from?.id },
+      meta: {
+        chatId: c.chat.id,
+        userId: c.from?.id,
+        followup: c.message.reply_to_message?.from?.is_bot ? parseFollowupPrompt(c.message.reply_to_message.text ?? "") ?? undefined : undefined,
+      },
     };
 
     try {
