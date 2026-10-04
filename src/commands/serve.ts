@@ -17,7 +17,7 @@ import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events
 import { computeInsights, renderInsights } from "../events/insights.js";
 import { deriveLiveStays } from "../events/stays.js";
 import { syncCalendar } from "../events/calendars.js";
-import { dueNudges, renderPrep } from "../events/prep.js";
+import { dueFollowups, dueNudges, renderFollowup, renderPrep } from "../events/prep.js";
 import { startTelegramBot, runQueueWorker } from "../inputs/telegram.js";
 import {
   scheduleDailyPrompt,
@@ -214,6 +214,19 @@ export async function runServe(opts: { config?: string }): Promise<void> {
     tick();
     setInterval(tick, 60_000).unref();
     console.log(`  Meeting prep: ${minutes} min before each calendar entry`);
+  }
+  if (config.prep?.followup) {
+    const sent = new Set<string>();
+    const tick = () => {
+      try {
+        for (const f of dueFollowups(ctx.index.events, { minutes: 30, sent, maxPrivacy: config.prep.include_sensitive ? "sensitive" : "normal" }))
+          void deliver("followup", renderFollowup(f)).catch((e) => console.error(`[followup] ${(e as Error).message}`));
+      } catch (e) {
+        console.error(`[followup] ${(e as Error).message}`);
+      }
+    };
+    setInterval(tick, 60_000).unref();
+    console.log("  Meeting follow-ups: on");
   }
   if (config.events.enabled && config.stays?.live) {
     const s = config.stays;
