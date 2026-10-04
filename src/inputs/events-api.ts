@@ -3,7 +3,8 @@ import type { DendriteConfig } from "../config.js";
 import type { DendriteIndex } from "../pipeline/index.js";
 import { ingestEvents, ingestOptionsFromConfig, parseNdjson } from "../events/ingest.js";
 import type { EventQuery, PrivacyLevel } from "../events/types.js";
-import { normalizeTime } from "../events/time.js";
+import { normalizeTime, localDate } from "../events/time.js";
+import { renderDigestMarkdown, summarizeDay, summarizeWeek } from "../events/timeline.js";
 
 export function bearerOk(config: DendriteConfig, req: Request): boolean {
   const token = process.env[config.inputs.webhook.tokenEnv];
@@ -114,6 +115,31 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
   app.get("/v1/streams", (req, res) => {
     if (!guard(req, res)) return;
     res.json({ streams: store.streams(), total: store.count() });
+  });
+
+  const summary = (req: Request, res: Response) => {
+    const date = str(req.query.date) ?? localDate(new Date().toISOString(), config.vault.timezone);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      res.status(400).json({ error: "date must be YYYY-MM-DD" });
+      return null;
+    }
+    const o = { timezone: config.vault.timezone, maxPrivacy };
+    return str(req.query.period) === "week" ? summarizeWeek(store, date, o) : summarizeDay(store, date, o);
+  };
+
+  app.get("/v1/timeline", (req, res) => {
+    if (!guard(req, res)) return;
+    const s = summary(req, res);
+    if (!s) return;
+    const { event_ids: _ids, ...rest } = s;
+    res.json(rest);
+  });
+
+  app.get("/v1/digest", (req, res) => {
+    if (!guard(req, res)) return;
+    const s = summary(req, res);
+    if (!s) return;
+    res.type("text/markdown").send(renderDigestMarkdown(s));
   });
 
   app.get("/v1/entities", (req, res) => {
