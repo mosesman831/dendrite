@@ -1,16 +1,12 @@
 import express, { type Express, type Request, type Response } from "express";
+import { statSync } from "node:fs";
 import type { DendriteConfig } from "../config.js";
 import type { DendriteIndex } from "../pipeline/index.js";
 import { ingestEvents, ingestOptionsFromConfig, parseNdjson } from "../events/ingest.js";
 import type { EventQuery, PrivacyLevel } from "../events/types.js";
 import { normalizeTime, localDate } from "../events/time.js";
+import { authorize, resolveApiKeys, type Scope } from "./http-security.js";
 import { renderDigestMarkdown, summarizeDay, summarizeWeek } from "../events/timeline.js";
-
-export function bearerOk(config: DendriteConfig, req: Request): boolean {
-  const token = process.env[config.inputs.webhook.tokenEnv];
-  if (!token) return true;
-  return req.headers.authorization === `Bearer ${token}`;
-}
 
 function str(v: unknown): string | undefined {
   return typeof v === "string" && v.length ? v : undefined;
@@ -47,17 +43,42 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
   const opts = ingestOptionsFromConfig(config);
   const maxPrivacy: PrivacyLevel = "sensitive";
 
-  const guard = (req: Request, res: Response): boolean => {
+  const keys = resolveApiKeys(config);
+  const guard = (req: Request, res: Response, scope: Scope = req.method === "GET" ? "read" : "write"): boolean => {
     if (!config.events.enabled) {
       res.status(404).json({ error: "events disabled" });
       return false;
     }
-    if (!bearerOk(config, req)) {
-      res.status(401).json({ error: "unauthorized" });
+    const a = authorize(keys, req.headers.authorization, scope);
+    if (!a.ok) {
+      res.status(a.status ?? 401).json({ error: a.status === 403 ? `forbidden: needs ${scope} scope` : "unauthorized" });
       return false;
     }
     return true;
   };
+
+  const started = Date.now();
+  app.get("/healthz", (_req, res) => {
+    res.json({ ok: true, service: "dendrite", uptime_s: Math.round((Date.now() - started) / 1000) });
+  });
+  app.get("/readyz", (_req, res) => {
+    try {
+      index.db.prepare("SELECT 1").get();
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(503).json({ ok: false, error: (e as Error).message });
+    }
+  });
+  app.get("/v1/stats", (req, res) => {
+    if (!guard(req, res)) return;
+    let db_bytes: number | null = null;
+    try {
+      db_bytes = statSync(config.index.db_path).size;
+    } catch {
+      /* in-memory or missing */
+    }
+    res.json({ events: store.count(), streams: store.streams().length, db_bytes, auth: keys.length ? "keys" : "open" });
+  });
 
   app.post("/v1/events", express.json({ limit: config.http.max_body }), (req, res) => {
     if (!guard(req, res)) return;
@@ -108,7 +129,7 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
   });
 
   app.delete("/v1/events/:id", (req, res) => {
-    if (!guard(req, res)) return;
+    if (!guard(req, res, "admin")) return;
     res.json({ ok: store.delete(req.params.id) });
   });
 

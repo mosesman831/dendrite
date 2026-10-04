@@ -146,6 +146,7 @@ export const ConfigSchema = z.object({
   retention: z
     .object({
       streams: z.record(z.string()).default({}),
+      prune_cron: z.string().default("30 3 * * *"),
     })
     .default({}),
   mcp: z
@@ -158,6 +159,15 @@ export const ConfigSchema = z.object({
     .object({
       max_body: z.string().default("5mb"),
       rate_limit_per_min: z.number().int().nonnegative().default(600),
+      api_keys: z
+        .array(
+          z.object({
+            name: z.string(),
+            tokenEnv: z.string(),
+            scopes: z.array(z.enum(["read", "write", "admin"])).min(1).default(["read"]),
+          }),
+        )
+        .default([]),
     })
     .default({}),
   voice: z.object({ keep_audio: z.boolean().default(false) }).default({}),

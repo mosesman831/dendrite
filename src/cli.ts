@@ -19,6 +19,7 @@ import { startMcpServer } from "./mcp/server.js";
 import { runRecord } from "./commands/record.js";
 import { runTimeline, runDigest } from "./commands/timeline.js";
 import { runImport } from "./commands/import.js";
+import { runPrune, runExport, runBackup } from "./commands/ops.js";
 
 const program = new Command();
 
@@ -78,6 +79,31 @@ program
   .option("--limit <n>", "git: max commits")
   .option("--json", "Machine-readable output")
   .action(runImport);
+
+program
+  .command("export")
+  .description("Export events as portable NDJSON (re-importable with `dendrite import`)")
+  .option("-c, --config <path>", "Config file path")
+  .option("-o, --out <file>", "Output file (default stdout)")
+  .option("--from <time>", "Start (inclusive)")
+  .option("--to <time>", "End (exclusive)")
+  .option("-s, --stream <names>", "Comma-separated streams")
+  .option("--include-secret", "Include secret-privacy events")
+  .action(runExport);
+
+program
+  .command("prune")
+  .description("Apply retention.streams policy (e.g. browser: 90d, '*': 5y)")
+  .option("-c, --config <path>", "Config file path")
+  .option("--dry-run", "Report without deleting")
+  .option("--json", "Machine-readable output")
+  .action(runPrune);
+
+program
+  .command("backup <file>")
+  .description("Online, consistent SQLite backup of the index + event log")
+  .option("-c, --config <path>", "Config file path")
+  .action(runBackup);
 
 program
   .command("timeline [date]")

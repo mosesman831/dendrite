@@ -117,8 +117,8 @@ test("importPath end-to-end: files + git repo, idempotent", () => {
   const repo = join(tmp, "repo");
   execFileSync("git", ["init", "-q", repo]);
   const g = (...a) => execFileSync("git", ["-C", repo, "-c", "user.name=T", "-c", "user.email=t@x", ...a]);
-  g("commit", "-q", "--allow-empty", "-m", "first");
-  g("commit", "-q", "--allow-empty", "-m", "second");
+  g("commit", "-q", "--allow-empty", "--date=2026-01-01T00:00:00Z", "-m", "first");
+  g("commit", "-q", "--allow-empty", "--date=2026-01-02T00:00:00Z", "-m", "second");
   s = importPath(store, repo, { ...DEFAULT_INGEST_OPTIONS, maxBatch: 1 });
   assert.equal(s.format, "git");
   assert.equal(s.accepted, 2);

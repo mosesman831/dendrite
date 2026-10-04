@@ -4,6 +4,9 @@ import { createExpressApp, mountWebhookRoute } from "../inputs/webhook.js";
 import { mountDashboard } from "../inputs/dashboard.js";
 import { mountEventsApi } from "../inputs/events-api.js";
 import { startDropFolder } from "../inputs/drop-folder.js";
+import { resolveApiKeys } from "../inputs/http-security.js";
+import { applyRetention } from "../events/retention.js";
+import { CronJob } from "cron";
 import { startTelegramBot, runQueueWorker } from "../inputs/telegram.js";
 import {
   scheduleDailyPrompt,
@@ -37,6 +40,21 @@ export async function runServe(opts: { config?: string }): Promise<void> {
   app.listen(port, () => {
     console.log(`Dendrite HTTP listening on :${port}`);
     if (config.inputs.drop_folder.enabled) startDropFolder(config, ctx.index);
+    if (!resolveApiKeys(config).length) {
+      console.warn("  ⚠ No API keys or webhook token set — /v1 API is OPEN. Set DENDRITE_WEBHOOK_TOKEN or http.api_keys.");
+    }
+    if (Object.keys(config.retention.streams).length) {
+      new CronJob(config.retention.prune_cron, () => {
+        try {
+          for (const r of applyRetention(ctx.index.events, config.retention.streams)) {
+            if (r.deleted) console.log(`[retention] ${r.stream}: pruned ${r.deleted} (keep ${r.keep})`);
+          }
+        } catch (e) {
+          console.error(`[retention] ${(e as Error).message}`);
+        }
+      }, null, true, config.vault.timezone);
+      console.log(`  Retention: ${Object.entries(config.retention.streams).map(([k, v]) => `${k}=${v}`).join(", ")}`);
+    }
     if (config.inputs.webhook.enabled) {
       console.log(`  Webhook: POST /ingest`);
     }

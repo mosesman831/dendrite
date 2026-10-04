@@ -395,6 +395,29 @@ dendrite import export.ndjson            # raw events
 
 Drop folder: set `inputs.drop_folder.enabled: true` and `dendrite serve` will import any file dropped into `inputs.drop_folder.path` (json/ndjson/ics/gpx/csv) every `poll_seconds`. Imported files move to `processed/`; files that fail move to `failed/` with an `.error.txt` next to them.
 
+### Operations
+
+```bash
+dendrite export -o all.ndjson [--from 2026-01-01 --to 2026-07-01 -s health]   # portable, re-importable
+dendrite backup ./backups/dendrite-$(date +%F).db    # online, consistent SQLite snapshot
+dendrite prune --dry-run                              # apply retention.streams
+```
+
+```yaml
+http:
+  rate_limit_per_min: 600        # per token/IP; 0 disables; 429 + Retry-After
+  max_body: 5mb
+  api_keys:                      # tokens come from env; legacy webhook token = full access
+    - { name: phone,  tokenEnv: DENDRITE_KEY_PHONE,  scopes: [write] }
+    - { name: agent,  tokenEnv: DENDRITE_KEY_AGENT,  scopes: [read] }
+    - { name: owner,  tokenEnv: DENDRITE_KEY_OWNER,  scopes: [admin] }   # DELETE needs admin
+retention:
+  streams: { browser: 90d, location: 2y, "*": forever }
+  prune_cron: "30 3 * * *"       # runs inside `dendrite serve`
+```
+
+`GET /healthz` (liveness), `GET /readyz` (DB check) and `GET /v1/stats` are built in. If no keys are configured, the API runs in open mode and `serve` prints a warning. The Docker image is multi-stage, runs as the non-root `node` user, and has a `HEALTHCHECK`.
+
 MCP tools: `record_event`, `query_events`, `timeline`, `event_streams`.
 
 Config: `events.*`, `privacy.{redact_at_rest,rules,custom_rules,streams}`, `digest.{folder,write_empty}`.
