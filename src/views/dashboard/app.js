@@ -371,7 +371,7 @@ function loadLoops() {
 }
 
 function loadNow() {
-  Promise.all([v1('/v1/now'), v1('/v1/habits'), v1('/v1/sources')]).then(function(r) {
+  Promise.all([v1('/v1/now'), v1('/v1/habits'), v1('/v1/sources'), v1('/v1/prep').catch(function() { return {}; })]).then(function(r) {
     var n = r[0], habits = r[1].habits || [], sources = (r[2].sources || []).filter(function(s) { return s.continuous; });
     var where = n.where ? (n.where.place || n.where.lat.toFixed(4) + ', ' + n.where.lon.toFixed(4)) : null;
     var html = '<div class="now-row"><span class="muted">Where</span> ' + (where ? '<b>' + escHtml(where) + '</b>' : '<span class="muted">unknown</span>') + '</div>';
@@ -381,6 +381,13 @@ function loadNow() {
         : new Date(e.at).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
       html += '<div class="now-row"><span class="muted">' + (e.in_progress ? 'In' : 'Next') + '</span> <b>' + escHtml(e.summary) + '</b> <span class="muted">' + escHtml(when) + '</span></div>';
     });
+    var prep = r[3] || {};
+    if (prep.meeting && (prep.people || []).length) html += '<div class="now-row"><span class="muted">Prep</span> ' + escHtml(prep.meeting.summary) + '</div><div class="chips">' + prep.people.map(function(p) {
+      var last = p.last_at ? Math.max(0, Math.round((Date.now() - Date.parse(p.last_at)) / 864e5)) + 'd ago' : 'new';
+      var tip = (p.open_loops || []).map(function(l) { return '☐ ' + l.text; }).concat((p.recent || []).map(function(x) { return x.at.slice(0, 10) + ' ' + x.summary; })).join('\n');
+      return '<span class="chip' + (p.open_loops.length ? ' warn' : '') + '" title="' + escHtml(tip) + '">' + escHtml(p.entity) + ' <b>' + last +
+        (p.open_loops.length ? ' · ' + p.open_loops.length + '&#9744;' : '') + '</b></span>';
+    }).join('') + '</div>';
     if (habits.length) html += '<div class="chips">' + habits.map(function(h) {
       var t = h.last ? (h.days_ago === 0 ? 'today' : h.days_ago + 'd') : 'never';
       return '<span class="chip' + (h.overdue ? ' warn' : '') + '" title="every ' + h.every_days + 'd · ' + h.done_30d + '× in 30d">' +
