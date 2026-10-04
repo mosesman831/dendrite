@@ -1,4 +1,4 @@
-import { rotateBackup } from "../events/backups.js";
+import { recordBackup, rotateBackup } from "../events/backups.js";
 import { loadConfig, loadCompartments } from "../config.js";
 import { createPipelineContext, drainQueue } from "../pipeline/pipeline.js";
 import { createExpressApp, mountWebhookRoute } from "../inputs/webhook.js";
@@ -118,8 +118,14 @@ export async function runServe(opts: { config?: string }): Promise<void> {
       const { cron, dir, keep } = config.backup;
       new CronJob(cron, () => {
         rotateBackup(ctx.index.db, dir, keep)
-          .then((r) => console.log(`[backup] ${r.path}${r.removed.length ? ` (rotated ${r.removed.length})` : ""}`))
-          .catch((e) => console.error(`[backup] ${(e as Error).message}`));
+          .then((r) => {
+            recordBackup(ctx.index.events);
+            console.log(`[backup] ${r.path}${r.removed.length ? ` (rotated ${r.removed.length})` : ""}`);
+          })
+          .catch((e) => {
+            recordBackup(ctx.index.events, (e as Error).message);
+            console.error(`[backup] ${(e as Error).message}`);
+          });
       }, null, true, config.vault.timezone);
       console.log(`  Backups: ${cron} → ${dir} (keep ${keep})`);
     }

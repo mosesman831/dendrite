@@ -249,6 +249,8 @@ export const ConfigSchema = z.object({
       cron: z.string().default(""),
       dir: z.string().default("./backups"),
       keep: z.number().int().min(1).max(365).default(7),
+      /** /v1/health + doctor warn when the last successful scheduled backup is older than this. */
+      max_age_hours: z.number().positive().default(48),
     })
     .default({}),
   retention: z

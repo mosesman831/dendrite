@@ -617,6 +617,7 @@ backup:
   cron: "0 4 * * *"
   dir: ./backups
   keep: 7
+  max_age_hours: 48   # /v1/health and doctor warn if the last good backup is older, or the last one failed
 ```
 
 ```yaml

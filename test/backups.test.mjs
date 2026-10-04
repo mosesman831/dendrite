@@ -6,7 +6,9 @@ import { join } from "node:path";
 import Database from "better-sqlite3";
 import { dist } from "./helpers.mjs";
 
-const { rotateBackup } = await dist("events/backups.js");
+const { rotateBackup, recordBackup } = await dist("events/backups.js");
+const { EventStore } = await dist("events/store.js");
+const { eventLogHealth } = await dist("events/health.js");
 
 test("rotateBackup: consistent snapshots, keeps newest N, ignores foreign files", async () => {
   const dir = mkdtempSync(join(tmpdir(), "dendrite-bk-"));
@@ -23,4 +25,18 @@ test("rotateBackup: consistent snapshots, keeps newest N, ignores foreign files"
   assert.equal(copy.prepare("SELECT count(*) n FROM t").get().n, 2);
   copy.close();
   db.close();
+});
+
+test("health warns on failed or overdue scheduled backups", () => {
+  const store = new EventStore(new Database(":memory:"));
+  const h = (now) => eventLogHealth(store, { apiKeys: 1, integrity: false, now, backupMaxAgeHours: 48 }).warnings.filter((w) => /backup/i.test(w));
+  assert.deepEqual(h("2026-10-04T00:00:00Z"), []);
+  recordBackup(store, undefined, "2026-10-01T04:00:00.000Z");
+  assert.deepEqual(h("2026-10-02T04:00:00Z"), []);
+  assert.deepEqual(h("2026-10-04T04:00:00Z"), ["Last backup is 72h old"]);
+  recordBackup(store, "ENOSPC", "2026-10-02T04:00:00.000Z");
+  assert.deepEqual(h("2026-10-02T05:00:00Z"), ["Last backup failed: ENOSPC"]);
+  assert.equal(eventLogHealth(store, { apiKeys: 1, integrity: false }).backup.ok_at, "2026-10-01T04:00:00.000Z");
+  recordBackup(store, undefined, "2026-10-03T04:00:00.000Z");
+  assert.deepEqual(h("2026-10-03T05:00:00Z"), []);
 });

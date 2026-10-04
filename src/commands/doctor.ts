@@ -208,7 +208,10 @@ export async function runDoctor(opts: {
 
     health.queue = index.queueStatusCounts();
     health.dangling_links = countDanglingLinks(config.vault.path, index);
-    const ev = eventLogHealth(index.events, { apiKeys: resolveApiKeys(config).length });
+    const ev = eventLogHealth(index.events, {
+      apiKeys: resolveApiKeys(config).length,
+      backupMaxAgeHours: config.backup?.cron ? config.backup.max_age_hours : undefined,
+    });
     health.event_log = ev;
     if (ev.integrity !== "ok") health.ok = false;
 

@@ -97,7 +97,11 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
 
   app.get("/v1/health", (req, res) => {
     if (!guard(req, res)) return;
-    res.json(eventLogHealth(store, { apiKeys: keys.length, integrity: req.query.integrity === "1" }));
+    res.json(eventLogHealth(store, {
+        apiKeys: keys.length,
+        integrity: req.query.integrity === "1",
+        backupMaxAgeHours: config.backup?.cron ? config.backup.max_age_hours : undefined,
+      }));
   });
 
   app.post("/v1/events", express.json({ limit: config.http.max_body }), (req, res) => {
