@@ -14,6 +14,7 @@ import { ingestEvents, ingestOptionsFromConfig, parseNdjson } from "../events/in
 import type { EventQuery, PrivacyLevel } from "../events/types.js";
 import { normalizeTime, localDate } from "../events/time.js";
 import { entityProfile } from "../events/recall.js";
+import { eventLogHealth } from "../events/health.js";
 import { listLoops, renderLoops, setLoopStatus, LOOP_STATUSES, type LoopStatus } from "../events/loops.js";
 import { recallHybrid } from "../events/semantic.js";
 import type { EmbeddingsConfig } from "../config.js";
@@ -91,6 +92,11 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
       /* in-memory or missing */
     }
     res.json({ events: store.count(), streams: store.streams().length, db_bytes, auth: keys.length ? "keys" : "open" });
+  });
+
+  app.get("/v1/health", (req, res) => {
+    if (!guard(req, res)) return;
+    res.json(eventLogHealth(store, { apiKeys: keys.length, integrity: req.query.integrity === "1" }));
   });
 
   app.post("/v1/events", express.json({ limit: config.http.max_body }), (req, res) => {

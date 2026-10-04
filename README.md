@@ -596,7 +596,7 @@ retention:
   prune_cron: "30 3 * * *"       # runs inside `dendrite serve`
 ```
 
-`GET /healthz` (liveness), `GET /readyz` (DB check) and `GET /v1/stats` are built in. If no keys are configured, the API runs in open mode and `serve` prints a warning. The Docker image is multi-stage, runs as the non-root `node` user, and has a `HEALTHCHECK`.
+`GET /healthz` (liveness), `GET /readyz` (DB check) and `GET /v1/stats` are built in. `GET /v1/health` (read scope) reports event-log freshness, stale feeds, open-API status and, with `?integrity=1`, a SQLite `quick_check`; `dendrite doctor` runs the same checks. If no keys are configured, the API runs in open mode and `serve` prints a warning. The Docker image is multi-stage, runs as the non-root `node` user, and has a `HEALTHCHECK`.
 
 MCP tools: `record_event`, `query_events`, `timeline`, `event_streams`.
 
