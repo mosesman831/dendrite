@@ -446,6 +446,15 @@ Point an always-on phone logger straight at Dendrite; no glue code is needed. Ph
 | [Health Auto Export](https://www.healthyapps.dev) (REST API automation) | `POST /v1/receivers/health-auto-export?token=…` | One `health/<metric>` event per sample, plus `health/workout`. All are marked sensitive |
 | GitHub repo/org webhook (content type `application/json`; events: push, pull requests, issues, releases) | `POST /v1/receivers/github?token=…` | `code/commit` per pushed commit, plus `code/pr_opened`, `pr_merged`, `issue_opened`, `release_published`, … Re-deliveries are deduplicated |
 
+**Calendar subscriptions.** Keep the agenda current without manual imports by polling private iCal links (Google "secret address in iCal format", Outlook/iCloud published calendars):
+
+```yaml
+calendars:
+  - { name: work, url_env: CAL_WORK_ICS, interval_min: 30, privacy: sensitive }
+```
+
+`serve` syncs each calendar at startup and then every `interval_min`; `dendrite calendar-sync` runs it once. The URL is read from the env var and never logged. Events are deduplicated by VEVENT UID (namespaced by calendar name). Edits to an event that was already imported are not re-applied.
+
 Each receiver replies in the format its app expects. Retries and overlapping batches are de-duplicated by external id. Location fixes then feed `/where`, stays and the timeline.
 
 ### Entity aliases

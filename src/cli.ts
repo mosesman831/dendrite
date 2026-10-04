@@ -20,6 +20,7 @@ import { runRecord } from "./commands/record.js";
 import { runTimeline, runDigest } from "./commands/timeline.js";
 import { runImport } from "./commands/import.js";
 import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights, runPeople, runPlaces, runSources, runAliases, runLast, runHabits, runNow } from "./commands/recall.js";
+import { runCalendarSync } from "./commands/calendars.js";
 import { runTriggersTest } from "./commands/triggers.js";
 import { runPrune, runExport, runBackup } from "./commands/ops.js";
 
@@ -204,6 +205,13 @@ program
   .option("--sensitive", "Include sensitive events")
   .option("--json", "Machine-readable output")
   .action(runNow);
+
+program
+  .command("calendar-sync")
+  .description("Pull configured ICS calendar subscriptions into the event log now")
+  .option("-c, --config <path>", "Config file path")
+  .option("--json", "Machine-readable output")
+  .action(runCalendarSync);
 
 program
   .command("export")

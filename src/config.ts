@@ -172,6 +172,18 @@ export const ConfigSchema = z.object({
     .default([]),
   /** Canonical entity → alternate spellings/nicknames, merged at ingest (`dendrite aliases --apply` backfills). */
   aliases: z.record(z.array(z.string())).default({}),
+  /** ICS subscriptions polled by `serve` (prefer url_env: subscription links are secrets). */
+  calendars: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        url: z.string().optional(),
+        url_env: z.string().optional(),
+        interval_min: z.number().int().min(5).default(30),
+        privacy: z.enum(["normal", "sensitive", "secret"]).optional(),
+      }),
+    )
+    .default([]),
   /** Named geofences: geo events inside one gain the place as an entity + `at:<slug>` tag. */
   places: z
     .array(
