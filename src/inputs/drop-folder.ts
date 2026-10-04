@@ -5,10 +5,15 @@ import type { DendriteIndex } from "../pipeline/index.js";
 import { ingestOptionsFromConfig } from "../events/ingest.js";
 import { importPath } from "../commands/import.js";
 
-const SUPPORTED = /\.(json|ndjson|jsonl|ics|gpx|csv)$/i;
+const SUPPORTED = /\.(json|ndjson|jsonl|ics|gpx|csv|xml)$/i;
 
 /** One sweep: import every settled file in the drop folder, then move it to processed/ or failed/. */
-export function sweepDropFolder(dir: string, index: DendriteIndex, config: DendriteConfig, settleMs = 2000): number {
+export async function sweepDropFolder(
+  dir: string,
+  index: DendriteIndex,
+  config: DendriteConfig,
+  settleMs = 2000,
+): Promise<number> {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   const processed = join(dir, "processed");
   const failed = join(dir, "failed");
@@ -20,7 +25,7 @@ export function sweepDropFolder(dir: string, index: DendriteIndex, config: Dendr
     if (Date.now() - st.mtimeMs < settleMs) continue;
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
     try {
-      const s = importPath(index.events, p, ingestOptionsFromConfig(config));
+      const s = await importPath(index.events, p, ingestOptionsFromConfig(config));
       mkdirSync(processed, { recursive: true });
       renameSync(p, join(processed, `${stamp}_${name}`));
       console.log(`[drop] ${name}: ${s.accepted} new, ${s.duplicates} dup, ${s.rejected} rejected`);
@@ -37,15 +42,20 @@ export function sweepDropFolder(dir: string, index: DendriteIndex, config: Dendr
 
 export function startDropFolder(config: DendriteConfig, index: DendriteIndex): () => void {
   const dir = config.inputs.drop_folder.path;
-  const run = () => {
+  let busy = false;
+  const run = async () => {
+    if (busy) return;
+    busy = true;
     try {
-      sweepDropFolder(dir, index, config);
+      await sweepDropFolder(dir, index, config);
     } catch (e) {
       console.error(`[drop] sweep error: ${(e as Error).message}`);
+    } finally {
+      busy = false;
     }
   };
-  run();
-  const t = setInterval(run, config.inputs.drop_folder.poll_seconds * 1000);
+  void run();
+  const t = setInterval(() => void run(), config.inputs.drop_folder.poll_seconds * 1000);
   t.unref();
   console.log(`  Drop folder: ${dir} (every ${config.inputs.drop_folder.poll_seconds}s)`);
   return () => clearInterval(t);

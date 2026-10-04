@@ -1,11 +1,14 @@
 import { execFileSync } from "node:child_process";
 import { extname } from "node:path";
 import { parseNdjson } from "./ingest.js";
+import { isTakeoutLocation, parseTakeoutLocation } from "./importers-life.js";
 
-export const IMPORT_FORMATS = ["json", "ndjson", "ics", "gpx", "csv", "git"] as const;
+export const IMPORT_FORMATS = ["json", "ndjson", "ics", "gpx", "csv", "git", "apple-health", "takeout-location"] as const;
 export type ImportFormat = (typeof IMPORT_FORMATS)[number];
 
 export interface ImportOptions {
+  /** gpx/takeout: also emit location/stay events derived from points. */
+  stays?: boolean;
   stream?: string;
   kind?: string;
   source?: string;
@@ -25,11 +28,13 @@ export function detectFormat(path: string, content?: string): ImportFormat {
   if (ext === ".ics" || ext === ".ical") return "ics";
   if (ext === ".gpx") return "gpx";
   if (ext === ".csv") return "csv";
+  if (ext === ".xml" && (content === undefined || /<HealthData\b/.test(content.slice(0, 4096)))) return "apple-health";
   if (ext === ".ndjson" || ext === ".jsonl") return "ndjson";
   if (ext === ".json") return "json";
   if (!ext && content === undefined) return "git";
   const head = content?.trimStart().slice(0, 200) ?? "";
   if (head.startsWith("BEGIN:VCALENDAR")) return "ics";
+  if (/<HealthData\b/.test(content?.slice(0, 4096) ?? "")) return "apple-health";
   if (head.startsWith("<?xml") || head.startsWith("<gpx")) return "gpx";
   if (head.startsWith("[") || (head.startsWith("{") && !head.includes("}\n{"))) return "json";
   return "ndjson";
@@ -281,8 +286,15 @@ export function readGitLog(repoPath: string, opts: ImportOptions = {}): ParsedIm
 
 export function parseImport(format: ImportFormat, content: string, opts: ImportOptions = {}): ParsedImport {
   switch (format) {
-    case "json":
+    case "json": {
+      const j = JSON.parse(content) as unknown;
+      if (isTakeoutLocation(j)) return parseTakeoutLocation(j, opts);
       return parseJsonImport(content);
+    }
+    case "takeout-location":
+      return parseTakeoutLocation(JSON.parse(content), opts);
+    case "apple-health":
+      throw new Error("apple-health is streamed; use importPath");
     case "ndjson": {
       const r = parseNdjson(content);
       return { items: r.items, errors: r.errors };

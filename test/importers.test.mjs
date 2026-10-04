@@ -103,14 +103,14 @@ test("detectFormat", () => {
   assert.equal(detectFormat("dump", "[1]"), "json");
 });
 
-test("importPath end-to-end: files + git repo, idempotent", () => {
+test("importPath end-to-end: files + git repo, idempotent", async () => {
   const ics = join(tmp, "cal.ics");
   writeFileSync(ics, ICS);
-  let s = importPath(store, ics, DEFAULT_INGEST_OPTIONS);
+  let s = await importPath(store, ics, DEFAULT_INGEST_OPTIONS);
   assert.equal(s.format, "ics");
   assert.equal(s.accepted, 2);
   assert.equal(s.rejected, 1);
-  s = importPath(store, ics, DEFAULT_INGEST_OPTIONS);
+  s = await importPath(store, ics, DEFAULT_INGEST_OPTIONS);
   assert.equal(s.accepted, 0);
   assert.equal(s.duplicates, 2);
 
@@ -119,11 +119,11 @@ test("importPath end-to-end: files + git repo, idempotent", () => {
   const g = (...a) => execFileSync("git", ["-C", repo, "-c", "user.name=T", "-c", "user.email=t@x", ...a]);
   g("commit", "-q", "--allow-empty", "--date=2026-01-01T00:00:00Z", "-m", "first");
   g("commit", "-q", "--allow-empty", "--date=2026-01-02T00:00:00Z", "-m", "second");
-  s = importPath(store, repo, { ...DEFAULT_INGEST_OPTIONS, maxBatch: 1 });
+  s = await importPath(store, repo, { ...DEFAULT_INGEST_OPTIONS, maxBatch: 1 });
   assert.equal(s.format, "git");
   assert.equal(s.accepted, 2);
   assert.equal(store.query({ stream: "git" }).events[0].text, "repo: second");
-  assert.throws(() => importPath(store, tmp, DEFAULT_INGEST_OPTIONS), /not a git repository/);
+  await assert.rejects(() => importPath(store, tmp, DEFAULT_INGEST_OPTIONS), /not a git repository/);
 });
 
 test("drop folder sweep moves files", async () => {
@@ -131,14 +131,14 @@ test("drop folder sweep moves files", async () => {
   const drop = join(tmp, "drop");
   const fakeIndex = { events: store };
   const config = { events: { max_batch: 100, default_source: "drop", stream_weights: {} }, privacy: { redact_at_rest: true, rules: [], custom_rules: [], streams: {} } };
-  sweepDropFolder(drop, fakeIndex, config);
+  await sweepDropFolder(drop, fakeIndex, config);
   writeFileSync(join(drop, "a.ndjson"), '{"stream":"note","kind":"x","text":"dropped one"}\n');
   writeFileSync(join(drop, "bad.json"), "{nope");
   writeFileSync(join(drop, "fresh.json"), "[]");
   const old = new Date(Date.now() - 60_000);
   utimesSync(join(drop, "a.ndjson"), old, old);
   utimesSync(join(drop, "bad.json"), old, old);
-  assert.equal(sweepDropFolder(drop, fakeIndex, config), 2);
+  assert.equal(await sweepDropFolder(drop, fakeIndex, config), 2);
   assert.ok(existsSync(join(drop, "fresh.json")));
   assert.equal(readdirSync(join(drop, "processed")).length, 1);
   assert.equal(readdirSync(join(drop, "failed")).length, 2);

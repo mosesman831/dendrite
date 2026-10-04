@@ -391,6 +391,8 @@ dendrite import ride.gpx                 # trackpoints → location/point (60s d
 dendrite import health.csv -s health -k daily   # any CSV with a date/time column; numeric cols → data
 dendrite import ~/code/myrepo            # git log → git/commit (sha-deduped)
 dendrite import export.ndjson            # raw events
+dendrite import export.xml --since 2025-01-01 --types step_count,heart_rate   # Apple Health (streamed; multi-GB OK)
+dendrite import Records.json --stays     # Google Takeout location (Records / Semantic History / on-device Timeline) + derived stays
 ```
 
 Drop folder: set `inputs.drop_folder.enabled: true` and `dendrite serve` will import any file dropped into `inputs.drop_folder.path` (json/ndjson/ics/gpx/csv) every `poll_seconds`. Imported files move to `processed/`; files that fail move to `failed/` with an `.error.txt` next to them.
