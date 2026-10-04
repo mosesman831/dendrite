@@ -243,6 +243,14 @@ export const ConfigSchema = z.object({
       include_sensitive: z.boolean().default(false),
     })
     .default({}),
+  backup: z
+    .object({
+      /** If set, `serve` takes a rotating online backup of the database on this schedule, e.g. "0 4 * * *". */
+      cron: z.string().default(""),
+      dir: z.string().default("./backups"),
+      keep: z.number().int().min(1).max(365).default(7),
+    })
+    .default({}),
   retention: z
     .object({
       streams: z.record(z.string()).default({}),
