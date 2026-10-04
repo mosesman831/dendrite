@@ -19,7 +19,7 @@ import { startMcpServer } from "./mcp/server.js";
 import { runRecord } from "./commands/record.js";
 import { runTimeline, runDigest } from "./commands/timeline.js";
 import { runImport } from "./commands/import.js";
-import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights } from "./commands/recall.js";
+import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights, runPeople } from "./commands/recall.js";
 import { runTriggersTest } from "./commands/triggers.js";
 import { runPrune, runExport, runBackup } from "./commands/ops.js";
 
@@ -133,6 +133,15 @@ program
   .option("--sensitive", "Include sensitive events (e.g. health)")
   .option("--json", "Machine-readable output")
   .action(runInsights);
+
+program
+  .command("people")
+  .description("Recurring people/places/things with cadence; flags the ones you've drifted from")
+  .option("-c, --config <path>", "Config file path")
+  .option("--drifting", "Only entities that have gone quiet relative to their usual rhythm")
+  .option("--sensitive", "Include sensitive events")
+  .option("--json", "Machine-readable output")
+  .action(runPeople);
 
 program
   .command("embed-events")

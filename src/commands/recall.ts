@@ -7,6 +7,7 @@ import { listLoops, renderLoops, setLoopStatus, LOOP_STATUSES, type LoopStatus }
 import { eventSummary } from "../events/timeline.js";
 import { briefOptionsFromConfig, buildBriefing, renderBriefing } from "../events/briefing.js";
 import { computeInsights, renderInsights } from "../events/insights.js";
+import { listPeople, renderPeople } from "../events/people.js";
 
 export async function runRecall(
   query: string | undefined,
@@ -141,6 +142,18 @@ export async function runInsights(opts: { config?: string; days?: string; to?: s
     if (!/^\d{4}-\d{2}-\d{2}$/.test(to)) throw new Error("--to must be YYYY-MM-DD");
     const i = computeInsights(index.events, { to, days: opts.days ? Number(opts.days) : 7, timezone: config.vault.timezone, maxPrivacy: opts.sensitive ? "sensitive" : "normal" });
     console.log(opts.json ? JSON.stringify(i, null, 2) : renderInsights(i));
+  } finally {
+    index.close();
+  }
+}
+
+export async function runPeople(opts: { config?: string; drifting?: boolean; json?: boolean; sensitive?: boolean }): Promise<void> {
+  const { config } = loadConfig(opts.config);
+  const index = new DendriteIndex(config.index.db_path);
+  try {
+    let rows = listPeople(index.events, { maxPrivacy: opts.sensitive ? "sensitive" : "normal", limit: 200 });
+    if (opts.drifting) rows = rows.filter((r) => r.drifting);
+    console.log(opts.json ? JSON.stringify(rows, null, 2) : renderPeople(rows));
   } finally {
     index.close();
   }

@@ -448,6 +448,10 @@ It is deterministic and needs no LLM. HTTP: `GET /v1/insights?days=&to=&format=m
 
 Set `insights.cron` (e.g. `"0 18 * * 0"`, Sunday 18:00) and `serve` sends the review to Telegram. It uses the same delivery as `brief.cron`, and `insights.days` sets the window. In Telegram, use `/insights [days]`. Only normal-privacy events are counted unless you ask for sensitive ones. Secret events and trigger-derived events are never counted.
 
+### People
+
+`dendrite people [--drifting]` lists the people, places and things that come up repeatedly in your log, with mention counts and first and last seen dates. It also works out each one's usual rhythm, and marks it **drifting** when the silence is at least three times that gap (and at least 14 days). For example, "Oscar: every ~7d, silent 36d". It is also available as HTTP `GET /v1/people?drifting=1&format=markdown`, the MCP `people` tool and Telegram `/people`.
+
 ### Telegram life commands
 
 Every capture is written to the event log (stream `note`, kind `capture` or `voice`) before any LLM call. That covers Telegram text, voice-note transcripts and `POST /ingest`. It makes captures searchable, turns their commitments into open loops, and means nothing is lost if the provider is down. Retries are not logged twice. Turn this off with `events.mirror_captures: false`, or for Telegram only with `inputs.telegram.log_events: false`.
@@ -457,6 +461,7 @@ Every capture is written to the event log (stream `note`, kind `capture` or `voi
 | `/brief` | The morning briefing |
 | `/today [date]` | Timeline for a day |
 | `/insights [days]` | Patterns vs the previous period |
+| `/people` | Active and drifting people |
 | `/loops` | Open loops |
 | `/done <id>`, `/drop <id>`, `/snooze <id> [until]` | Close, drop or snooze a loop. An id prefix of 4+ characters is enough; snooze defaults to +24h |
 | `/recall <q>` | Search your whole log, semantically when embeddings are on |
