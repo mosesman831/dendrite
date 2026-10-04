@@ -18,6 +18,7 @@ import type { Context } from "grammy";
 import { LIFE_COMMANDS, lifeCommand } from "./telegram-life.js";
 import { eventEmbeddingsConfig } from "../events/semantic.js";
 import { parseFollowupPrompt } from "../events/prep.js";
+import { parseEveningPrompt } from "../events/evening.js";
 
 const pendingSorts = new Map<number, { scope: "all" | "inbox" | "imports"; at: number }>();
 
@@ -168,6 +169,7 @@ export async function startTelegramBot(
         chatId: c.chat.id,
         userId: c.from?.id,
         followup: c.message.reply_to_message?.from?.is_bot ? parseFollowupPrompt(c.message.reply_to_message.text ?? "") ?? undefined : undefined,
+        journal: c.message.reply_to_message?.from?.is_bot ? parseEveningPrompt(c.message.reply_to_message.text ?? "") ?? undefined : undefined,
       },
     };
 

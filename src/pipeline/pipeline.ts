@@ -340,6 +340,7 @@ function mirrorCapture(ctx: PipelineContext, dump: Dump, text: string): void {
   if (config.events?.enabled === false || config.events?.mirror_captures === false) return;
   if (dump.source.startsWith("telegram") && config.inputs?.telegram?.log_events === false) return;
   const followup = dump.meta?.followup as { summary: string; entities: string[] } | undefined;
+  const journal = dump.meta?.journal as string | undefined;
   try {
     ingestEvents(
       ctx.index.events,
@@ -352,6 +353,7 @@ function mirrorCapture(ctx: PipelineContext, dump: Dump, text: string): void {
           occurred_at: dump.receivedAt,
           text,
           ...(followup ? { entities: followup.entities, tags: ["meeting-followup"], data: { meeting: followup.summary } } : {}),
+          ...(journal && !followup ? { tags: ["journal"], data: { journal_date: journal } } : {}),
         },
       ],
       ingestOptionsFromConfig(config),
