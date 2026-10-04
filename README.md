@@ -435,6 +435,22 @@ MCP: `recall` (markdown context pack, ready to drop into an agent prompt) and `e
 
 If API keys are configured, click **Key** to save one in this browser (localStorage). It's sent as a Bearer header, including on the live stream, which uses fetch rather than EventSource so the header can be sent.
 
+### Telegram life commands
+
+Every text you send the bot is also written to the event log (stream `note`, source `telegram`). That makes it searchable, and commitments in it become open loops. Re-delivered messages aren't logged twice. Turn this off with `inputs.telegram.log_events: false`.
+
+| Command | What it does |
+| --- | --- |
+| `/brief` | The morning briefing |
+| `/today [date]` | Timeline for a day |
+| `/loops` | Open loops |
+| `/done <id>`, `/drop <id>`, `/snooze <id> [until]` | Close, drop or snooze a loop. An id prefix of 4+ characters is enough; snooze defaults to +24h |
+| `/recall <q>` | Search your whole log, semantically when embeddings are on |
+| `/log <text>` | Record an event exactly as written, without classifying it |
+| `/where` | Last location event |
+
+These commands only show normal-privacy events.
+
 ### Morning briefing
 
 `dendrite brief [--date YYYY-MM-DD]` gives you the day at a glance:

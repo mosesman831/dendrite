@@ -43,6 +43,8 @@ export const ConfigSchema = z.object({
         enabled: z.boolean().default(false),
         tokenEnv: z.string().default("TELEGRAM_BOT_TOKEN"),
         allowed_user_ids: z.array(z.number()).default([]),
+        /** Mirror every text capture into the event log (stream "note", source "telegram"). */
+        log_events: z.boolean().default(true),
       })
       .default({}),
     webhook: z
