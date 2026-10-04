@@ -166,6 +166,10 @@ export const ConfigSchema = z.object({
       include_sensitive: z.boolean().default(false),
     })
     .default({}),
+  /** Recurring things to keep up; matched by full-text `query` (default: name). */
+  habits: z
+    .array(z.object({ name: z.string().min(1), query: z.string().optional(), stream: z.string().optional(), every_days: z.number().int().min(1).default(7) }))
+    .default([]),
   /** Canonical entity → alternate spellings/nicknames, merged at ingest (`dendrite aliases --apply` backfills). */
   aliases: z.record(z.array(z.string())).default({}),
   /** Named geofences: geo events inside one gain the place as an entity + `at:<slug>` tag. */

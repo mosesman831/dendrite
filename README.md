@@ -470,6 +470,16 @@ Any event with coordinates inside a place's radius gets the place as an entity a
 
 While `serve` runs, it turns streamed location points into `location/stay` events every `stays.interval_min` minutes (default 15). Stays are named after a configured place when one matches, e.g. "At Home for ~40 min". A stay is only written once you've left it, so the event never changes after it's created. A stay is at least as private as the points it was built from. Configure it under `stays: { live, interval_min, lookback_hours, radius_m, min_minutes }`.
 
+### Habits
+
+```yaml
+habits:
+  - { name: gym, every_days: 3 }
+  - { name: Call mum, query: mum, every_days: 7 }
+```
+
+Habits come from what you already log; there's no separate check-in. A habit counts as done on any day that has an event matching `query` (a full-text search that defaults to the habit's name), optionally limited to one `stream`. `dendrite habits` (also `/v1/habits`, MCP `habits`, Telegram `/habits`) shows when each habit was last done, the current streak and the 30-day count. The morning briefing lists overdue habits under "Habits due".
+
 ### When did I last…?
 
 `dendrite last haircut` (also `GET /v1/last?q=`, MCP `last_time`, Telegram `/last`) answers from your log. It shows the most recent match and how long ago it was. It also shows how many days the thing appears on, and its usual interval. When the current gap is more than twice the usual interval, it says so.

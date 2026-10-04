@@ -1,3 +1,4 @@
+import { habitStatus, type Habit } from "./habits.js";
 import { sourceHealth } from "./sources.js";
 import { listPeople } from "./people.js";
 import type { DendriteConfig } from "../config.js";
@@ -17,6 +18,7 @@ export interface BriefingOptions {
   reconnect?: number;
   /** Warn about continuous sources that went silent (default true). */
   captureWarnings?: boolean;
+  habits?: Habit[];
   now?: string;
 }
 
@@ -29,6 +31,7 @@ export interface Briefing {
   on_this_day: Array<{ date: string; years_ago: number; highlights: TimelineEntry[] }>;
   reconnect: Array<{ entity: string; days_since: number; typical_gap_days: number | null }>;
   stale_sources: Array<{ source: string; hours_since: number }>;
+  habits_due: Array<{ name: string; days_ago: number | null; every_days: number }>;
 }
 
 export function briefOptionsFromConfig(config: DendriteConfig): BriefingOptions {
@@ -39,6 +42,7 @@ export function briefOptionsFromConfig(config: DendriteConfig): BriefingOptions 
     agendaStreams: b?.agenda_streams,
     soonDays: b?.soon_days,
     lookbackYears: b?.lookback_years,
+    habits: config.habits,
   };
 }
 
@@ -92,7 +96,10 @@ export function buildBriefing(store: EventStore, date: string, o: BriefingOption
       : sourceHealth(store, { now: o.now })
           .filter((s) => s.stale)
           .map(({ source, hours_since }) => ({ source, hours_since }));
-  return { date, timezone: tz, agenda, loops, yesterday, on_this_day, reconnect, stale_sources };
+  const habits_due = habitStatus(store, o.habits ?? [], { now: o.now ?? dayRange(date, tz).to, timezone: tz, maxPrivacy: base.maxPrivacy })
+    .filter((h) => h.overdue)
+    .map(({ name, days_ago, every_days }) => ({ name, days_ago, every_days }));
+  return { date, timezone: tz, agenda, loops, yesterday, on_this_day, reconnect, stale_sources, habits_due };
 }
 
 const entry = (e: TimelineEntry) => `- ${e.time} [${e.stream}] ${e.summary}`;
@@ -124,6 +131,10 @@ export function renderBriefing(b: Briefing): string {
   if (b.reconnect.length) {
     out.push("", "## Reconnect");
     for (const r of b.reconnect) out.push(`- ${r.entity}: usually every ~${r.typical_gap_days}d, last mentioned ${r.days_since}d ago`);
+  }
+  if (b.habits_due?.length) {
+    out.push("", "## Habits due");
+    for (const h of b.habits_due) out.push(`- ${h.name}: ${h.days_ago == null ? "never recorded" : `${h.days_ago}d since last`} (every ${h.every_days}d)`);
   }
   if (b.stale_sources?.length) {
     out.push("", "## Capture gaps");
