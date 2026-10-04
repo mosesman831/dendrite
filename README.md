@@ -447,6 +447,15 @@ Point an always-on phone logger straight at Dendrite; no glue code is needed. Ph
 
 Each receiver replies in the format its app expects. Retries and overlapping batches are de-duplicated by external id. Location fixes then feed `/where`, stays and the timeline.
 
+### Entity aliases
+
+```yaml
+aliases:
+  "Priya Shah": [Priya, "P. Shah", priya.shah@example.com]
+```
+
+When an event is ingested, any alias is rewritten to its canonical name, matched case-insensitively. This keeps `people`, `who`, insights and reconnect from splitting one person into several entries. `dendrite aliases` shows how many stored mentions are still under an alias; `dendrite aliases --apply` merges them, and running it again changes nothing.
+
 ### Named places
 
 ```yaml

@@ -19,7 +19,7 @@ import { startMcpServer } from "./mcp/server.js";
 import { runRecord } from "./commands/record.js";
 import { runTimeline, runDigest } from "./commands/timeline.js";
 import { runImport } from "./commands/import.js";
-import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights, runPeople, runPlaces, runSources } from "./commands/recall.js";
+import { runRecall, runWho, runEmbedEvents, runLoops, runLoopSet, runBrief, runInsights, runPeople, runPlaces, runSources, runAliases } from "./commands/recall.js";
 import { runTriggersTest } from "./commands/triggers.js";
 import { runPrune, runExport, runBackup } from "./commands/ops.js";
 
@@ -158,6 +158,14 @@ program
   .option("--days <n>", "Window in days", "30")
   .option("--json", "Machine-readable output")
   .action(runSources);
+
+program
+  .command("aliases")
+  .description("Entity aliases (config `aliases:`); --apply merges already-stored mentions into the canonical name")
+  .option("-c, --config <path>", "Config file path")
+  .option("--apply", "Rewrite stored events so aliases become the canonical entity")
+  .option("--json", "Machine-readable output")
+  .action(runAliases);
 
 program
   .command("embed-events")

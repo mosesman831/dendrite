@@ -166,6 +166,8 @@ export const ConfigSchema = z.object({
       include_sensitive: z.boolean().default(false),
     })
     .default({}),
+  /** Canonical entity → alternate spellings/nicknames, merged at ingest (`dendrite aliases --apply` backfills). */
+  aliases: z.record(z.array(z.string())).default({}),
   /** Named geofences: geo events inside one gain the place as an entity + `at:<slug>` tag. */
   places: z
     .array(
