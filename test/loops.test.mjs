@@ -79,3 +79,11 @@ test("loops disabled when ingest options lack loops", () => {
   ingestEvents(store, [{ stream: "chat", kind: "m", text: "todo: thing" }]);
   assert.equal(L.listLoops(store, { status: "all" }).length, 0);
 });
+
+test("loop text keeps dotted tokens (versions, domains)", async () => {
+  const { extractLoops } = await dist("events/loops.js");
+  const l = extractLoops("TODO: write up the v0.5 plan. Then rest", "2026-10-04");
+  assert.equal(l[0].text, "write up the v0.5 plan");
+  const m = extractLoops("I need to renew example.com before it lapses!", "2026-10-04");
+  assert.equal(m[0].text, "renew example.com before it lapses");
+});

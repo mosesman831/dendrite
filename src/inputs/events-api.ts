@@ -253,7 +253,7 @@ export function mountEventsApi(app: Express, config: DendriteConfig, index: Dend
     else res.json({ loops });
   });
 
-  app.patch("/v1/loops/:id", (req, res) => {
+  app.patch("/v1/loops/:id", express.json({ limit: "16kb" }), (req, res) => {
     if (!guard(req, res, "write")) return;
     const b = (req.body ?? {}) as { status?: string; snooze_until?: string };
     if (!b.status || !(LOOP_STATUSES as readonly string[]).includes(b.status)) {

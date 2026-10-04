@@ -92,6 +92,8 @@ const STOP_CAPS = new Set([
   "Why", "How", "Where", "Who", "Remember", "Note", "Hi", "Hey", "Yes", "No", "In", "On", "At",
   "Met", "See", "Saw", "Got", "Had", "Went", "Called", "Told", "Asked", "Spoke", "Talked", "After",
   "Before", "Later", "Now", "Please", "Thanks", "Lunch", "Dinner", "Breakfast", "With", "For", "From",
+  "Good", "Great", "Bad", "Live", "Remind", "Stayed", "TODO", "Todo", "FIXME", "Need", "Finally", "Done", "Booked", "Finished",
+  "Don", "Didn", "Can", "Will", "Should", "Must", "Let", "Maybe", "Still", "Back", "Left", "Arrived", "Started",
 ]);
 
 /** Cheap deterministic entity extraction: @handles, #tags, URLs → domains, proper-noun runs. */

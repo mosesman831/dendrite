@@ -425,6 +425,16 @@ MCP: `recall` (markdown context pack, ready to drop into an agent prompt) and `e
 
 **Semantic recall.** When `index.embeddings.enabled` is set, event text is embedded incrementally: run `dendrite embed-events`, or let `serve` do it on `index.embeddings.events_cron`, every 10 minutes by default. `recall`, `/v1/recall` and the MCP `recall` tool then blend vector matches with full-text hits, weighted by `hybrid_weight`, so "dog" finds "took the puppy to the vet". Only normal-privacy events are sent to the embeddings provider unless `events_include_sensitive: true`. Secret events are never sent. If the provider fails, recall falls back to full-text search instead of erroring. Turn hybrid matching off for one query with `--no-semantic` or `semantic=0`.
 
+### Dashboard: Life tab
+
+`/dashboard` → **Life** shows one day of your event log:
+- Per-stream counts, a timeline (high-importance events in bold), and the people and things mentioned. Use ←/→ or the date picker to move between days.
+- Open loops with done/snooze/drop buttons.
+- A recall box that searches your whole log. Click any entity chip to recall it.
+- A live feed fed by `/v1/stream`.
+
+If API keys are configured, click **Key** to save one in this browser (localStorage). It's sent as a Bearer header, including on the live stream, which uses fetch rather than EventSource so the header can be sent.
+
 ### Open loops
 
 Commitments and todos in your events are tracked automatically. Dendrite picks up phrases like "I'll…", "need to…", "remind me to…", "follow up with…", "TODO: …" and `- [ ]` checkboxes. Relative due dates are resolved against the event's date: "tomorrow", "by friday", "in 3 days", "next week", or an ISO date.
