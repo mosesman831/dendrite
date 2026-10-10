@@ -100,5 +100,6 @@ Write path = Dendrite. Read/reason path = your agent (Hermes, Cursor, Claude Cod
 
 ## Related
 
+- [SPEC.md](SPEC.md) — detailed feature specification (the *how* behind this roadmap)
 - [DOCS.md](DOCS.md) — usage guide
 - [CHANGELOG.md](CHANGELOG.md) — release history
